@@ -1,0 +1,2177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Field Alerts | Yieldera</title>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Google Fonts - Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#B6BF00',
+              dark: '#a1a900',
+              light: '#c7cc33'
+            },
+            secondary: {
+              DEFAULT: '#01282F',
+              dark: '#001a1f',
+              light: '#023a45'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --primary-color: #B6BF00;
+      --primary-light: #c7cc33;
+      --primary-dark: #a1a900;
+      --secondary-color: #01282F;
+      --secondary-light: #023a45;
+      --secondary-dark: #001a1f;
+      --light-bg: #f8f9fa;
+      --dark-bg: #181818;
+      --text-light: #ffffff;
+      --text-dark: #01282F;
+      --text-muted: #8b9198;
+      --border-color: #e5e7eb;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    /* Custom loading spinner */
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: var(--primary-color);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Dark mode styling */
+    .dark .bg-white {
+      background-color: var(--dark-bg);
+    }
+
+    .dark .text-gray-800 {
+      color: var(--text-light);
+    }
+
+    .dark .border-gray-200 {
+      border-color: #2d3748;
+    }
+
+    .dark .text-gray-600 {
+      color: #cbd5e0;
+    }
+
+    /* Sidebar and panel transition */
+    .sidebar {
+      transition: transform 0.3s ease-in-out;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      
+      .sidebar.active {
+        transform: translateX(0);
+      }
+    }
+
+    .sidebar-overlay {
+      visibility: hidden;
+      opacity: 0;
+      transition: visibility 0s linear 0.3s, opacity 0.3s;
+    }
+
+    .sidebar-overlay.active {
+      visibility: visible;
+      opacity: 1;
+      transition-delay: 0s;
+    }
+
+    /* Enhanced sidebar hover effects */
+    .sidebar-nav-item {
+      border-left: 4px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-nav-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-left-color: var(--primary-color);
+    }
+
+    .dark .sidebar-nav-item:hover {
+      background-color: var(--secondary-light);
+      color: white;
+    }
+
+    .sidebar-nav-item.active {
+      border-left-color: var(--primary-color);
+      background-color: var(--secondary-light);
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 50;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background-color: white;
+      border-radius: 0.5rem;
+      width: 95%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      transform: translateY(20px);
+      transition: transform 0.3s;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: translateY(0);
+    }
+
+    .dark .modal-content {
+      background-color: var(--secondary-color);
+      color: var(--text-light);
+    }
+
+    /* Alert type badges */
+    .alert-type-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .alert-temperature {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: rgb(239, 68, 68);
+    }
+
+    .alert-rainfall {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: rgb(59, 130, 246);
+    }
+
+    .alert-ndvi {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: rgb(16, 185, 129);
+    }
+
+    .alert-wind {
+      background-color: rgba(245, 158, 11, 0.1);
+      color: rgb(245, 158, 11);
+    }
+
+    /* Alert status badges */
+    .alert-status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .alert-status-active {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: rgb(16, 185, 129);
+    }
+
+    .alert-status-inactive {
+      background-color: rgba(107, 114, 128, 0.1);
+      color: rgb(107, 114, 128);
+    }
+
+    .alert-status-triggered {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: rgb(239, 68, 68);
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 640px) {
+      .alert-card {
+        margin-bottom: 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex flex-col h-screen dark:bg-gray-900">
+  <!-- Check for dark mode -->
+  <script>
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+      if (event.matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    });
+  </script>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 text-white">
+    <div class="bg-secondary-light p-6 rounded-lg flex flex-col items-center">
+      <div class="spinner mb-4"></div>
+      <div id="loadingMessage">Loading Alert Management...</div>
+      <div class="w-full mt-2 bg-gray-700 h-1 rounded-full overflow-hidden">
+        <div id="loadingProgress" class="progress-bar" style="width: 0%; height: 100%; background-color: #B6BF00;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Toggle Button -->
+  <button id="sidebarToggle" class="md:hidden fixed top-4 left-4 z-40 bg-white dark:bg-secondary text-secondary dark:text-white p-2 rounded-full shadow-lg">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <!-- Mobile Overlay Background -->
+  <div id="sidebarOverlay" class="sidebar-overlay md:hidden fixed inset-0 z-30 bg-black bg-opacity-50"></div>
+
+  <!-- Main Layout Container -->
+  <div class="flex h-full">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar bg-secondary text-white w-60 md:w-64 flex-shrink-0 md:relative fixed inset-y-0 left-0 z-40 md:z-10 h-full md:transform-none">
+      <div class="flex flex-col h-full">
+        <!-- Logo -->
+        <div class="p-4 border-b border-secondary-light">
+          <img src="https://yieldera.co.zw/assets/img/logo.svg" alt="Yieldera Logo" class="h-8">
+        </div>
+        
+        <!-- Navigation -->
+        <nav class="flex-1 overflow-y-auto py-4">
+          <ul>
+            <li>
+              <a href="dashboard.html" class="sidebar-nav-item flex items-center px-4 py-3 text-white">
+                <i class="fas fa-chart-line w-6"></i>
+                <span>Dashboard</span>
+              </a>
+            </li>
+            <li>
+              <a href="field_management.html" class="sidebar-nav-item flex items-center px-4 py-3 text-white">
+                <i class="fas fa-map-marked-alt w-6"></i>
+                <span>Fields</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="sidebar-nav-item flex items-center px-4 py-3 text-white">
+                <i class="fas fa-cloud-sun w-6"></i>
+                <span>Weather</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="sidebar-nav-item flex items-center px-4 py-3 text-white">
+                <i class="fas fa-file-pdf w-6"></i>
+                <span>Reports</span>
+              </a>
+            </li>
+            <li>
+              <a href="alerts.html" class="sidebar-nav-item active flex items-center px-4 py-3 text-white">
+                <i class="fas fa-bell w-6"></i>
+                <span>Alerts</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="sidebar-nav-item flex items-center px-4 py-3 text-white">
+                <i class="fas fa-cog w-6"></i>
+                <span>Settings</span>
+              </a>
+            </li>
+          </ul>
+          
+          <!-- Admin Menu - Only show for admin role -->
+          <div id="adminMenu" class="pt-4 mt-4 border-t border-secondary-light hidden">
+            <h3 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Administration
+            </h3>
+            <ul class="mt-2">
+              <li>
+                <a href="#" class="sidebar-nav-item flex items-center px-4 py-3 text-white">
+                  <i class="fas fa-users w-6"></i>
+                  <span>Manage Users</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-nav-item flex items-center px-4 py-3 text-white">
+                  <i class="fas fa-briefcase w-6"></i>
+                  <span>Manage Insurers</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-nav-item flex items-center px-4 py-3 text-white">
+                  <i class="fas fa-seedling w-6"></i>
+                  <span>Manage Crops</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+        
+        <!-- User Info -->
+        <div class="p-4 border-t border-secondary-light bg-secondary-dark">
+          <div class="flex items-center">
+            <span id="userRole" class="bg-primary text-secondary text-xs font-bold px-2 py-1 rounded mr-2">INSURER</span>
+            <span id="userName" class="text-sm font-medium">User Name</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden">
+      <!-- Header Bar -->
+      <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4 px-6 flex flex-wrap justify-between items-center gap-4">
+        <h1 class="text-2xl font-semibold text-secondary dark:text-white">Alert Management</h1>
+        
+        <div class="flex space-x-3">
+          <button id="configureAlertBtn" class="bg-primary text-secondary font-medium py-2 px-4 rounded flex items-center gap-2 hover:bg-primary-light transition-colors">
+            <i class="fas fa-plus-circle"></i> <span class="sm:inline">Configure New Alert</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Dashboard Stats -->
+      <div class="bg-white dark:bg-gray-800 p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center">
+          <div class="rounded-full bg-primary bg-opacity-20 p-3 mr-4">
+            <i class="fas fa-bell text-primary text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-gray-500 dark:text-gray-300 text-sm font-medium">Total Alerts</h3>
+            <p id="totalAlerts" class="text-2xl font-bold text-secondary dark:text-white">0</p>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center">
+          <div class="rounded-full bg-green-500 bg-opacity-20 p-3 mr-4">
+            <i class="fas fa-check-circle text-green-500 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-gray-500 dark:text-gray-300 text-sm font-medium">Active Alerts</h3>
+            <p id="activeAlerts" class="text-2xl font-bold text-secondary dark:text-white">0</p>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center">
+          <div class="rounded-full bg-red-500 bg-opacity-20 p-3 mr-4">
+            <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-gray-500 dark:text-gray-300 text-sm font-medium">Triggered Today</h3>
+            <p id="triggeredAlerts" class="text-2xl font-bold text-secondary dark:text-white">0</p>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 flex items-center">
+          <div class="rounded-full bg-blue-500 bg-opacity-20 p-3 mr-4">
+            <i class="fas fa-envelope text-blue-500 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-gray-500 dark:text-gray-300 text-sm font-medium">Notifications Sent</h3>
+            <p id="notificationsSent" class="text-2xl font-bold text-secondary dark:text-white">0</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Filter Options -->
+      <div class="bg-white dark:bg-gray-800 p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+          <div class="relative flex-grow max-w-md w-full sm:w-auto">
+            <input type="text" id="searchAlert" class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-base" placeholder="Search alerts...">
+            <span class="absolute left-3 top-2.5 text-gray-400">
+              <i class="fas fa-search"></i>
+            </span>
+          </div>
+          
+          <div class="flex flex-wrap gap-3 items-center w-full sm:w-auto">
+            <select id="fieldFilter" class="rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary text-base">
+              <option value="">All Fields</option>
+            </select>
+            
+            <select id="alertTypeFilter" class="rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary text-base">
+              <option value="">All Alert Types</option>
+              <option value="temperature">Temperature</option>
+              <option value="rainfall">Rainfall</option>
+              <option value="ndvi">NDVI</option>
+              <option value="wind">Wind Speed</option>
+            </select>
+            
+            <select id="statusFilter" class="rounded-lg border border-gray-300 dark:border-gray-600 py-2 px-3 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary text-base">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="triggered">Triggered</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Alerts List -->
+      <div class="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-100 dark:bg-gray-900">
+        <!-- Active Alerts Section -->
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold text-secondary dark:text-white mb-4">Active Alerts</h2>
+          <div id="activeAlertsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Alert cards will be added dynamically here -->
+          </div>
+        </div>
+        
+        <!-- Recent Alert History Section -->
+        <div>
+          <h2 class="text-lg font-semibold text-secondary dark:text-white mb-4">Recent Alert History</h2>
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Alert Name</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Field</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Condition</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Triggered</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Notifications</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="alertHistoryBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <!-- Alert history rows will be added dynamically here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Empty State (shown when no alerts are configured) -->
+        <div id="emptyState" class="hidden flex flex-col items-center justify-center py-16">
+          <div class="text-gray-400 dark:text-gray-500 text-5xl mb-4">
+            <i class="fas fa-bell-slash"></i>
+          </div>
+          <h3 class="text-xl font-medium text-gray-600 dark:text-gray-300 mb-2">No Alerts Configured</h3>
+          <p class="text-gray-500 dark:text-gray-400 mb-6 text-center max-w-md">You haven't set up any alerts yet. Configure alerts to be notified when field conditions change.</p>
+          <button id="emptyStateBtn" class="bg-primary text-secondary font-medium py-2 px-4 rounded flex items-center gap-2 hover:bg-primary-light transition-colors">
+            <i class="fas fa-plus-circle"></i> Configure Your First Alert
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- Alert Configuration Modal -->
+  <div id="configureAlertModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-secondary dark:text-white" id="alertModalTitle">Configure New Alert</h2>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form id="alertForm">
+        <div class="p-6">
+          <input type="hidden" id="alertId" value="">
+          
+          <!-- Basic Alert Information -->
+          <div class="mb-4">
+            <label for="alertName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alert Name</label>
+            <input type="text" id="alertName" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" placeholder="e.g. Low Temperature Warning" required>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label for="fieldSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Field</label>
+              <select id="fieldSelect" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" required>
+                <option value="">Select a field</option>
+                <!-- Field options will be populated dynamically -->
+              </select>
+            </div>
+            
+            <div>
+              <label for="alertType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alert Type</label>
+              <select id="alertType" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" required>
+                <option value="">Select alert type</option>
+                <option value="temperature">Temperature</option>
+                <option value="rainfall">Rainfall</option>
+                <option value="ndvi">NDVI</option>
+                <option value="wind">Wind Speed</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Alert Condition -->
+          <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg mb-4">
+            <h3 class="font-medium text-gray-700 dark:text-gray-300 mb-3">Alert Condition</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label for="conditionType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Condition</label>
+                <select id="conditionType" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" required>
+                  <option value="lessThan">Less than</option>
+                  <option value="greaterThan">Greater than</option>
+                  <option value="equals">Equals</option>
+                  <option value="between">Between</option>
+                </select>
+              </div>
+              
+              <div>
+                <label for="thresholdValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Threshold Value</label>
+                <input type="number" id="thresholdValue" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" step="0.01" required>
+              </div>
+              
+              <div id="secondThresholdContainer" class="hidden">
+                <label for="secondThresholdValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upper Threshold</label>
+                <input type="number" id="secondThresholdValue" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" step="0.01">
+              </div>
+            </div>
+            
+            <div class="mb-4">
+              <label for="durationHours" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duration (hours before triggering)</label>
+              <input type="number" id="durationHours" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" min="0" value="1" required>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">The condition must persist for this many hours before the alert is triggered</p>
+            </div>
+          </div>
+          
+          <!-- Notification Settings -->
+          <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg mb-4">
+            <h3 class="font-medium text-gray-700 dark:text-gray-300 mb-3">Notification Settings</h3>
+            
+            <div class="mb-4">
+              <label class="flex items-center">
+                <input type="checkbox" id="emailNotification" class="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600" checked>
+                <span class="text-sm text-gray-700 dark:text-gray-300">Send email notification</span>
+              </label>
+            </div>
+            
+            <div id="emailContainer" class="mb-4">
+              <label for="notificationEmails" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Recipients</label>
+              <input type="text" id="notificationEmails" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" placeholder="email1@example.com, email2@example.com">
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Separate multiple email addresses with commas</p>
+            </div>
+            
+            <div class="mb-4">
+              <label class="flex items-center">
+                <input type="checkbox" id="smsNotification" class="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600">
+                <span class="text-sm text-gray-700 dark:text-gray-300">Send SMS notification</span>
+              </label>
+            </div>
+            
+            <div id="smsContainer" class="mb-4 hidden">
+              <label for="phoneNumbers" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone Numbers</label>
+              <input type="text" id="phoneNumbers" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" placeholder="+263777123456, +263712345678">
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Separate multiple phone numbers with commas</p>
+            </div>
+            
+            <div>
+              <label for="notificationFrequency" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notification Frequency</label>
+              <select id="notificationFrequency" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
+                <option value="once">Once per trigger event</option>
+                <option value="hourly">Hourly while condition persists</option>
+                <option value="daily">Daily while condition persists</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="flex items-center">
+            <label class="flex items-center">
+              <input type="checkbox" id="alertActive" class="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600" checked>
+              <span class="text-sm text-gray-700 dark:text-gray-300">Alert active</span>
+            </label>
+          </div>
+        </div>
+        
+        <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+          <button type="button" class="close-modal px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-secondary bg-primary hover:bg-primary-light focus:outline-none">
+            Save Alert
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Alert Details Modal -->
+  <div id="alertDetailsModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-secondary dark:text-white">Alert Details</h2>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 id="detailAlertName" class="text-lg font-semibold text-secondary dark:text-white">Alert Name</h3>
+          <span id="detailAlertStatus" class="alert-status-badge alert-status-active">Active</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Field</h4>
+            <p id="detailFieldName" class="text-gray-900 dark:text-white">Field Name</p>
+          </div>
+          
+          <div>
+            <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Alert Type</h4>
+            <p id="detailAlertType" class="flex items-center">
+              <span class="alert-type-badge alert-temperature mr-2">Temperature</span>
+            </p>
+          </div>
+          
+          <div>
+            <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Condition</h4>
+            <p id="detailCondition" class="text-gray-900 dark:text-white">Less than 10°C</p>
+          </div>
+          
+          <div>
+            <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Duration</h4>
+            <p id="detailDuration" class="text-gray-900 dark:text-white">For 2 hours</p>
+          </div>
+          
+          <div>
+            <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Notification Method</h4>
+            <p id="detailNotificationMethod" class="text-gray-900 dark:text-white">Email</p>
+          </div>
+          
+          <div>
+            <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Notification Frequency</h4>
+            <p id="detailFrequency" class="text-gray-900 dark:text-white">Once per trigger event</p>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Recent Trigger History</h4>
+          <div id="triggerHistory" class="space-y-3 max-h-48 overflow-y-auto">
+            <!-- Trigger history items will be inserted here -->
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Status</h4>
+          <div id="currentAlertStatus" class="flex items-center justify-between">
+            <div>
+              <span id="statusDescription" class="text-gray-900 dark:text-white">No active triggers</span>
+            </div>
+            <div>
+              <span id="lastChecked" class="text-sm text-gray-500 dark:text-gray-400">Last checked: 5 minutes ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex space-x-3">
+        <button id="editAlertBtn" class="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-secondary bg-primary hover:bg-primary-light focus:outline-none">
+          <i class="fas fa-edit mr-2"></i>Edit Alert
+        </button>
+        <button id="toggleAlertBtn" class="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
+          <i class="fas fa-pause mr-2"></i>Pause Alert
+        </button>
+        <button id="testAlertBtn" class="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
+          <i class="fas fa-bell mr-2"></i>Test Alert
+        </button>
+        <button id="deleteAlertBtn" class="ml-auto px-4 py-2 rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none">
+          <i class="fas fa-trash-alt mr-2"></i>Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteConfirmModal" class="modal-overlay">
+    <div class="modal-content max-w-md">
+      <div class="p-6">
+        <div class="text-center mb-4">
+          <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+            <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-medium text-gray-900 dark:text-white mb-2">Confirm Deletion</h3>
+          <p class="text-gray-500 dark:text-gray-400" id="delete-confirm-text">Are you sure you want to delete this alert? This action cannot be undone.</p>
+        </div>
+        <div class="flex justify-center gap-3 mt-6">
+          <button id="cancel-delete" class="bg-white dark:bg-secondary border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white font-medium py-2 px-4 rounded flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-secondary-light transition-colors">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button id="confirm-delete" class="bg-red-500 text-white font-medium py-2 px-4 rounded flex items-center gap-2 hover:bg-red-600 transition-colors">
+            <i class="fas fa-trash-alt"></i> Delete Alert
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test Alert Modal -->
+  <div id="testAlertModal" class="modal-overlay">
+    <div class="modal-content max-w-md">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-secondary dark:text-white">Test Alert</h2>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="p-6">
+        <p class="text-gray-600 dark:text-gray-300 mb-4">Send a test notification for this alert to verify that your notification settings are working correctly.</p>
+        
+        <div class="mb-4">
+          <label for="testMessage" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Custom Test Message (Optional)</label>
+          <textarea id="testMessage" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" placeholder="Add a custom message to the test notification"></textarea>
+        </div>
+        
+        <div class="mb-4">
+          <label class="flex items-center">
+            <input type="checkbox" id="testAllRecipients" class="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600" checked>
+            <span class="text-sm text-gray-700 dark:text-gray-300">Send to all configured recipients</span>
+          </label>
+        </div>
+        
+        <div id="testRecipientsContainer" class="mb-4 hidden">
+          <label for="testRecipients" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Test Recipients</label>
+          <input type="text" id="testRecipients" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" placeholder="email@example.com">
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Enter a single email address for testing</p>
+        </div>
+      </div>
+      
+      <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+        <button type="button" class="close-modal px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none">
+          Cancel
+        </button>
+        <button id="sendTestBtn" class="px-4 py-2 rounded-md shadow-sm text-sm font-medium text-secondary bg-primary hover:bg-primary-light focus:outline-none">
+          <i class="fas fa-paper-plane mr-2"></i>Send Test
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification System -->
+  <div id="notificationContainer" class="fixed bottom-4 right-4 z-50 flex flex-col space-y-2"></div>
+
+  <!-- Main JavaScript -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Global variables
+      let allAlerts = [];
+      let fieldsData = [];
+      let currentAlert = null;
+      let isEditing = false;
+      
+      // Initialize loading
+      updateLoadingProgress(10, 'Initializing...');
+      
+      // Setup UI
+      initializeUI();
+      updateLoadingProgress(30, 'Setting up interface...');
+      
+      // Load fields data
+      fetchFields().then(() => {
+        updateLoadingProgress(50, 'Loading fields...');
+        
+        // Load alerts data
+        return fetchAlerts();
+      }).then(() => {
+        updateLoadingProgress(80, 'Rendering alerts...');
+        
+        // Display alerts
+        renderAlerts();
+        
+        // Setup polling for alert status updates
+        setupAlertStatusPolling();
+        
+        updateLoadingProgress(100, 'Complete!');
+        setTimeout(hideLoadingOverlay, 500);
+      }).catch(error => {
+        console.error('Error during initialization:', error);
+        showNotification('Error loading data. Please refresh the page.', 'error');
+        hideLoadingOverlay();
+      });
+      
+      // Initialize UI components and event handlers
+      function initializeUI() {
+        // Setup mobile menu toggle
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        
+        sidebarToggle.addEventListener('click', function() {
+          sidebar.classList.toggle('active');
+          sidebarOverlay.classList.toggle('active');
+        });
+        
+        sidebarOverlay.addEventListener('click', function() {
+          sidebar.classList.remove('active');
+          this.classList.remove('active');
+        });
+        
+        // Configure Alert button
+        document.getElementById('configureAlertBtn').addEventListener('click', function() {
+          openConfigureAlertModal();
+        });
+        
+        // Empty state button
+        document.getElementById('emptyStateBtn').addEventListener('click', function() {
+          openConfigureAlertModal();
+        });
+        
+        // Setup modal close buttons
+        document.querySelectorAll('.close-modal').forEach(button => {
+          button.addEventListener('click', function() {
+            const modal = this.closest('.modal-overlay');
+            closeModal(modal);
+          });
+        });
+        
+        // Set up the condition type change handler
+        document.getElementById('conditionType').addEventListener('change', function() {
+          const secondThresholdContainer = document.getElementById('secondThresholdContainer');
+          if (this.value === 'between') {
+            secondThresholdContainer.classList.remove('hidden');
+            document.getElementById('secondThresholdValue').setAttribute('required', 'required');
+          } else {
+            secondThresholdContainer.classList.add('hidden');
+            document.getElementById('secondThresholdValue').removeAttribute('required');
+          }
+        });
+        
+        // Set up notification type checkboxes
+        document.getElementById('emailNotification').addEventListener('change', function() {
+          document.getElementById('emailContainer').style.display = this.checked ? 'block' : 'none';
+        });
+        
+        document.getElementById('smsNotification').addEventListener('change', function() {
+          document.getElementById('smsContainer').style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // Setup alert type change handler to update threshold labels
+        document.getElementById('alertType').addEventListener('change', function() {
+          updateThresholdLabels(this.value);
+        });
+        
+        // Set up alert form submission
+        document.getElementById('alertForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          saveAlert();
+        });
+        
+        // Set up test notification checkbox
+        document.getElementById('testAllRecipients').addEventListener('change', function() {
+          document.getElementById('testRecipientsContainer').classList.toggle('hidden', this.checked);
+        });
+        
+        // Set up test alert send button
+        document.getElementById('sendTestBtn').addEventListener('click', function() {
+          sendTestAlert();
+        });
+        
+        // Set up alert detail actions
+        document.getElementById('editAlertBtn').addEventListener('click', function() {
+          if (currentAlert) {
+            editAlert(currentAlert);
+          }
+        });
+        
+        document.getElementById('toggleAlertBtn').addEventListener('click', function() {
+          if (currentAlert) {
+            toggleAlertStatus(currentAlert);
+          }
+        });
+        
+        document.getElementById('testAlertBtn').addEventListener('click', function() {
+          if (currentAlert) {
+            openTestAlertModal(currentAlert);
+          }
+        });
+        
+        document.getElementById('deleteAlertBtn').addEventListener('click', function() {
+          if (currentAlert) {
+            openDeleteConfirmModal(currentAlert);
+          }
+        });
+        
+        // Setup delete confirmation
+        document.getElementById('cancel-delete').addEventListener('click', function() {
+          closeModal(document.getElementById('deleteConfirmModal'));
+        });
+        
+        document.getElementById('confirm-delete').addEventListener('click', function() {
+          deleteAlert(currentAlert);
+          closeModal(document.getElementById('deleteConfirmModal'));
+        });
+        
+        // Setup filter change handlers
+        document.getElementById('searchAlert').addEventListener('input', applyFilters);
+        document.getElementById('fieldFilter').addEventListener('change', applyFilters);
+        document.getElementById('alertTypeFilter').addEventListener('change', applyFilters);
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+      }
+      
+      // Update loading progress
+      function updateLoadingProgress(percent, message) {
+        document.getElementById('loadingProgress').style.width = `${percent}%`;
+        if (message) {
+          document.getElementById('loadingMessage').textContent = message;
+        }
+      }
+      
+      // Hide loading overlay
+      function hideLoadingOverlay() {
+        document.getElementById('loadingOverlay').style.opacity = '0';
+        setTimeout(() => {
+          document.getElementById('loadingOverlay').style.display = 'none';
+        }, 500);
+      }
+      
+      // Open a modal
+      function openModal(modal) {
+        modal.classList.add('active');
+        
+        // Close when clicking outside the modal content
+        modal.addEventListener('click', function(e) {
+          if (e.target === this) {
+            closeModal(modal);
+          }
+        }, { once: true });
+      }
+      
+      // Close a modal
+      function closeModal(modal) {
+        modal.classList.remove('active');
+      }
+      
+      // Show notification
+      function showNotification(message, type = 'info') {
+        const container = document.getElementById('notificationContainer');
+        const notification = document.createElement('div');
+        
+        // Set notification style based on type
+        let bgColor, textColor, icon;
+        
+        switch(type) {
+          case 'success':
+            bgColor = 'bg-green-500';
+            textColor = 'text-white';
+            icon = 'fa-check-circle';
+            break;
+          case 'error':
+            bgColor = 'bg-red-500';
+            textColor = 'text-white';
+            icon = 'fa-exclamation-circle';
+            break;
+          case 'warning':
+            bgColor = 'bg-yellow-500';
+            textColor = 'text-white';
+            icon = 'fa-exclamation-triangle';
+            break;
+          default: // info
+            bgColor = 'bg-secondary';
+            textColor = 'text-white';
+            icon = 'fa-info-circle';
+        }
+        
+        notification.className = `${bgColor} ${textColor} px-4 py-3 rounded shadow-lg flex items-center max-w-md`;
+        notification.innerHTML = `
+          <i class="fas ${icon} mr-3"></i>
+          <span>${message}</span>
+        `;
+        
+        container.appendChild(notification);
+        
+        // Remove notification after 4 seconds
+        setTimeout(() => {
+          notification.style.opacity = '0';
+          notification.style.transition = 'opacity 0.5s';
+          setTimeout(() => {
+            if (notification.parentNode) {
+              container.removeChild(notification);
+            }
+          }, 500);
+        }, 4000);
+      }
+      
+      // Fetch fields data
+      async function fetchFields() {
+        try {
+          // In a real implementation, you would fetch this from an API
+          // For demo, simulate a response with sample data
+          
+          // Simulate API delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Sample field data
+          fieldsData = [
+            {
+              id: 1,
+              name: "Maize Field East",
+              farm_name: "Green Valley Farm",
+              farmer_name: "John Farmer",
+              crop: "Maize",
+              area_ha: 1.5
+            },
+            {
+              id: 2,
+              name: "Western Wheat",
+              farm_name: "Sunnydale Farm",
+              farmer_name: "Jane Farmer",
+              crop: "Wheat",
+              area_ha: 2.3
+            },
+            {
+              id: 3,
+              name: "Southern Rice Paddy",
+              farm_name: "Riverside Farm",
+              farmer_name: "Bob Farmer",
+              crop: "Rice",
+              area_ha: 0.8
+            }
+          ];
+          
+          // Populate field dropdown
+          const fieldSelect = document.getElementById('fieldSelect');
+          const fieldFilter = document.getElementById('fieldFilter');
+          
+          // Clear existing options except the first one
+          while (fieldSelect.options.length > 1) {
+            fieldSelect.remove(1);
+          }
+          
+          while (fieldFilter.options.length > 1) {
+            fieldFilter.remove(1);
+          }
+          
+          // Add fields to dropdown
+          fieldsData.forEach(field => {
+            const option = document.createElement('option');
+            option.value = field.id;
+            option.textContent = field.name;
+            fieldSelect.appendChild(option);
+            
+            const filterOption = document.createElement('option');
+            filterOption.value = field.id;
+            filterOption.textContent = field.name;
+            fieldFilter.appendChild(filterOption);
+          });
+          
+          return fieldsData;
+        } catch (error) {
+          console.error('Error fetching fields:', error);
+          showNotification('Could not load fields. Using sample data.', 'warning');
+          return [];
+        }
+      }
+      
+      // Fetch alerts data
+      async function fetchAlerts() {
+        try {
+          // In a real implementation, you would fetch this from an API
+          // For demo, simulate a response with sample data
+          
+          // Simulate API delay
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          // Sample alert data
+          allAlerts = [
+            {
+              id: 1,
+              name: "Low Temperature Warning",
+              fieldId: 1,
+              alertType: "temperature",
+              conditionType: "lessThan",
+              thresholdValue: 5,
+              secondThresholdValue: null,
+              durationHours: 2,
+              emailNotification: true,
+              notificationEmails: "farmer@example.com, manager@example.com",
+              smsNotification: false,
+              phoneNumbers: "",
+              notificationFrequency: "once",
+              active: true,
+              lastTriggered: "2023-07-15T09:30:00Z",
+              triggerHistory: [
+                {
+                  timestamp: "2023-07-15T09:30:00Z",
+                  value: 3.5,
+                  notificationSent: true
+                }
+              ],
+              createdAt: "2023-06-01T10:00:00Z",
+              updatedAt: "2023-07-15T09:30:00Z"
+            },
+            {
+              id: 2,
+              name: "High Rainfall Alert",
+              fieldId: 2,
+              alertType: "rainfall",
+              conditionType: "greaterThan",
+              thresholdValue: 50,
+              secondThresholdValue: null,
+              durationHours: 1,
+              emailNotification: true,
+              notificationEmails: "farmer2@example.com",
+              smsNotification: true,
+              phoneNumbers: "+1234567890",
+              notificationFrequency: "hourly",
+              active: true,
+              lastTriggered: null,
+              triggerHistory: [],
+              createdAt: "2023-06-15T14:20:00Z",
+              updatedAt: "2023-06-15T14:20:00Z"
+            },
+            {
+              id: 3,
+              name: "NDVI Decline Warning",
+              fieldId: 3,
+              alertType: "ndvi",
+              conditionType: "lessThan",
+              thresholdValue: 0.3,
+              secondThresholdValue: null,
+              durationHours: 24,
+              emailNotification: true,
+              notificationEmails: "farmer3@example.com",
+              smsNotification: false,
+              phoneNumbers: "",
+              notificationFrequency: "daily",
+              active: false,
+              lastTriggered: "2023-07-10T11:15:00Z",
+              triggerHistory: [
+                {
+                  timestamp: "2023-07-10T11:15:00Z",
+                  value: 0.25,
+                  notificationSent: true
+                }
+              ],
+              createdAt: "2023-06-20T09:45:00Z",
+              updatedAt: "2023-07-12T10:30:00Z"
+            }
+          ];
+          
+          // Update stats
+          updateAlertStats();
+          
+          return allAlerts;
+        } catch (error) {
+          console.error('Error fetching alerts:', error);
+          showNotification('Could not load alert data.', 'warning');
+          return [];
+        }
+      }
+      
+      // Update alert statistics
+      function updateAlertStats() {
+        const totalAlerts = allAlerts.length;
+        const activeAlerts = allAlerts.filter(alert => alert.active).length;
+        
+        // Get today's triggered alerts
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const triggeredToday = allAlerts.filter(alert => {
+          if (!alert.lastTriggered) return false;
+          const triggerDate = new Date(alert.lastTriggered);
+          return triggerDate >= today;
+        }).length;
+        
+        // Count all notifications sent
+        let notificationsSent = 0;
+        allAlerts.forEach(alert => {
+          notificationsSent += alert.triggerHistory.filter(history => history.notificationSent).length;
+        });
+        
+        // Update UI
+        document.getElementById('totalAlerts').textContent = totalAlerts;
+        document.getElementById('activeAlerts').textContent = activeAlerts;
+        document.getElementById('triggeredAlerts').textContent = triggeredToday;
+        document.getElementById('notificationsSent').textContent = notificationsSent;
+      }
+      
+      // Render alerts
+      function renderAlerts() {
+        const activeAlertsContainer = document.getElementById('activeAlertsContainer');
+        const alertHistoryBody = document.getElementById('alertHistoryBody');
+        const emptyState = document.getElementById('emptyState');
+        
+        // Clear existing content
+        activeAlertsContainer.innerHTML = '';
+        alertHistoryBody.innerHTML = '';
+        
+        // Check if we have any alerts
+        if (allAlerts.length === 0) {
+          emptyState.classList.remove('hidden');
+        } else {
+          emptyState.classList.add('hidden');
+          
+          // Filter active alerts
+          const activeAlerts = allAlerts.filter(alert => alert.active);
+          
+          // Render active alert cards
+          activeAlerts.forEach(alert => {
+            activeAlertsContainer.appendChild(createAlertCard(alert));
+          });
+          
+          // If no active alerts, show a message
+          if (activeAlerts.length === 0) {
+            activeAlertsContainer.innerHTML = '<div class="col-span-3 text-center text-gray-500 dark:text-gray-400 py-8">No active alerts configured. Use the "Configure New Alert" button to set up alerts.</div>';
+          }
+          
+          // Render all alerts in the history table
+          allAlerts.forEach(alert => {
+            alertHistoryBody.appendChild(createAlertTableRow(alert));
+          });
+        }
+      }
+      
+      // Create an alert card for active alerts
+      function createAlertCard(alert) {
+        const field = fieldsData.find(f => f.id === alert.fieldId) || { name: 'Unknown Field' };
+        
+        const card = document.createElement('div');
+        card.className = 'alert-card bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden';
+        card.dataset.alertId = alert.id;
+        
+        // Get alert type badge class
+        let alertTypeClass = 'alert-temperature';
+        switch (alert.alertType) {
+          case 'rainfall':
+            alertTypeClass = 'alert-rainfall';
+            break;
+          case 'ndvi':
+            alertTypeClass = 'alert-ndvi';
+            break;
+          case 'wind':
+            alertTypeClass = 'alert-wind';
+            break;
+        }
+        
+        // Get condition text
+        const conditionText = getConditionText(alert);
+        
+        // Check if alert was triggered recently (within last 24 hours)
+        const recentlyTriggered = alert.lastTriggered && (new Date() - new Date(alert.lastTriggered)) < 24 * 60 * 60 * 1000;
+        
+        card.innerHTML = `
+          <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <div>
+              <span class="alert-type-badge ${alertTypeClass} mb-1">
+                ${getAlertTypeIconHTML(alert.alertType)} ${capitalizeFirstLetter(alert.alertType)}
+              </span>
+              <h3 class="text-lg font-semibold text-secondary dark:text-white">${alert.name}</h3>
+            </div>
+            ${recentlyTriggered ? `
+              <div class="flex-shrink-0">
+                <span class="alert-status-badge alert-status-triggered">
+                  <i class="fas fa-exclamation-circle mr-1"></i> Triggered
+                </span>
+              </div>
+            ` : ''}
+          </div>
+          <div class="p-4">
+            <div class="mb-2">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Field:</span>
+              <span class="ml-1 text-gray-900 dark:text-white">${field.name}</span>
+            </div>
+            <div class="mb-2">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Condition:</span>
+              <span class="ml-1 text-gray-900 dark:text-white">${conditionText}</span>
+            </div>
+            <div class="mb-3">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Notification:</span>
+              <span class="ml-1 text-gray-900 dark:text-white">
+                ${alert.emailNotification ? `<i class="fas fa-envelope text-xs mr-1"></i> Email` : ''}
+                ${alert.smsNotification ? `<i class="fas fa-sms text-xs mr-1 ${alert.emailNotification ? 'ml-2' : ''}"></i> SMS` : ''}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <button class="view-alert-btn text-primary dark:text-primary-light hover:text-primary-dark dark:hover:text-primary transition-colors text-sm font-medium">
+                View Details
+              </button>
+              <div class="text-xs text-gray-500 dark:text-gray-400">
+                ${alert.lastTriggered ? `Last triggered: ${formatDate(alert.lastTriggered)}` : 'Never triggered'}
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Add event listener to view details button
+        card.querySelector('.view-alert-btn').addEventListener('click', () => {
+          showAlertDetails(alert);
+        });
+        
+        // Make the whole card clickable
+        card.addEventListener('click', (e) => {
+          // Only trigger if not clicking a button
+          if (!e.target.closest('button')) {
+            showAlertDetails(alert);
+          }
+        });
+        
+        return card;
+      }
+      
+      // Create an alert table row for the history section
+      function createAlertTableRow(alert) {
+        const field = fieldsData.find(f => f.id === alert.fieldId) || { name: 'Unknown Field' };
+        
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer';
+        row.dataset.alertId = alert.id;
+        
+        // Get alert type badge class
+        let alertTypeClass = 'alert-temperature';
+        switch (alert.alertType) {
+          case 'rainfall':
+            alertTypeClass = 'alert-rainfall';
+            break;
+          case 'ndvi':
+            alertTypeClass = 'alert-ndvi';
+            break;
+          case 'wind':
+            alertTypeClass = 'alert-wind';
+            break;
+        }
+        
+        // Get alert status badge class
+        let statusBadgeClass = 'alert-status-active';
+        let statusText = 'Active';
+        if (!alert.active) {
+          statusBadgeClass = 'alert-status-inactive';
+          statusText = 'Inactive';
+        } else if (alert.lastTriggered && (new Date() - new Date(alert.lastTriggered)) < 24 * 60 * 60 * 1000) {
+          statusBadgeClass = 'alert-status-triggered';
+          statusText = 'Triggered';
+        }
+        
+        // Get condition text
+        const conditionText = getConditionText(alert);
+        
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+              <div>
+                <div class="text-sm font-medium text-gray-900 dark:text-white">${alert.name}</div>
+                <div>
+                  <span class="alert-type-badge ${alertTypeClass} mt-1 text-xs">
+                    ${getAlertTypeIconHTML(alert.alertType)} ${capitalizeFirstLetter(alert.alertType)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-900 dark:text-white">${field.name}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">${field.farm_name || 'Unknown Farm'}</div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-900 dark:text-white">${conditionText}</div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div>
+              <span class="alert-status-badge ${statusBadgeClass}">
+                ${getStatusIconHTML(statusText)} ${statusText}
+              </span>
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              ${alert.lastTriggered ? formatDate(alert.lastTriggered) : 'Never triggered'}
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-900 dark:text-white">
+              ${alert.emailNotification ? `<i class="fas fa-envelope mr-1"></i> Email` : ''}
+              ${alert.smsNotification ? `<i class="fas fa-sms mr-1 ${alert.emailNotification ? 'ml-2' : ''}"></i> SMS` : ''}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              ${getNotificationFrequencyText(alert.notificationFrequency)}
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <button class="view-alert-btn text-primary dark:text-primary-light hover:text-primary-dark dark:hover:text-primary transition-colors mr-3">
+              View
+            </button>
+            <button class="edit-alert-btn text-secondary dark:text-blue-400 hover:text-secondary-light dark:hover:text-blue-300 transition-colors mr-3">
+              Edit
+            </button>
+            <button class="delete-alert-btn text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors">
+              Delete
+            </button>
+          </td>
+        `;
+        
+        // Add event listeners
+        row.querySelector('.view-alert-btn').addEventListener('click', () => {
+          showAlertDetails(alert);
+        });
+        
+        row.querySelector('.edit-alert-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          editAlert(alert);
+        });
+        
+        row.querySelector('.delete-alert-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openDeleteConfirmModal(alert);
+        });
+        
+        // Make the whole row clickable
+        row.addEventListener('click', (e) => {
+          // Only trigger if not clicking a button
+          if (!e.target.closest('button')) {
+            showAlertDetails(alert);
+          }
+        });
+        
+        return row;
+      }
+      
+      // Get alert type icon HTML
+      function getAlertTypeIconHTML(alertType) {
+        switch (alertType) {
+          case 'temperature':
+            return '<i class="fas fa-thermometer-half mr-1"></i>';
+          case 'rainfall':
+            return '<i class="fas fa-cloud-rain mr-1"></i>';
+          case 'ndvi':
+            return '<i class="fas fa-leaf mr-1"></i>';
+          case 'wind':
+            return '<i class="fas fa-wind mr-1"></i>';
+          default:
+            return '<i class="fas fa-bell mr-1"></i>';
+        }
+      }
+      
+      // Get status icon HTML
+      function getStatusIconHTML(status) {
+        switch (status) {
+          case 'Active':
+            return '<i class="fas fa-check-circle mr-1"></i>';
+          case 'Inactive':
+            return '<i class="fas fa-pause-circle mr-1"></i>';
+          case 'Triggered':
+            return '<i class="fas fa-exclamation-circle mr-1"></i>';
+          default:
+            return '<i class="fas fa-circle mr-1"></i>';
+        }
+      }
+      
+      // Get condition text from alert data
+      function getConditionText(alert) {
+        const getUnitSymbol = (type) => {
+          switch (type) {
+            case 'temperature':
+              return '°C';
+            case 'rainfall':
+              return 'mm';
+            case 'ndvi':
+              return '';
+            case 'wind':
+              return 'km/h';
+            default:
+              return '';
+          }
+        };
+        
+        const unit = getUnitSymbol(alert.alertType);
+        
+        switch (alert.conditionType) {
+          case 'lessThan':
+            return `< ${alert.thresholdValue}${unit} for ${alert.durationHours}h`;
+          case 'greaterThan':
+            return `> ${alert.thresholdValue}${unit} for ${alert.durationHours}h`;
+          case 'equals':
+            return `= ${alert.thresholdValue}${unit} for ${alert.durationHours}h`;
+          case 'between':
+            return `${alert.thresholdValue}${unit} - ${alert.secondThresholdValue}${unit} for ${alert.durationHours}h`;
+          default:
+            return `${alert.thresholdValue}${unit}`;
+        }
+      }
+      
+      // Format date for display
+      function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        
+        // Check if the date is today
+        const today = new Date();
+        if (date.toDateString() === today.toDateString()) {
+          return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        }
+        
+        // Check if the date is yesterday
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (date.toDateString() === yesterday.toDateString()) {
+          return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        }
+        
+        // Format as Month Day, Year HH:MM
+        return date.toLocaleDateString([], { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric' 
+        }) + ', ' + date.toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+      }
+      
+      // Get notification frequency text
+      function getNotificationFrequencyText(frequency) {
+        switch (frequency) {
+          case 'once':
+            return 'Once per event';
+          case 'hourly':
+            return 'Hourly reminders';
+          case 'daily':
+            return 'Daily reminders';
+          default:
+            return frequency;
+        }
+      }
+      
+      // Capitalize first letter of a string
+      function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+      }
+      
+      // Apply filters to alerts list
+      function applyFilters() {
+        const searchTerm = document.getElementById('searchAlert').value.toLowerCase();
+        const fieldFilter = document.getElementById('fieldFilter').value;
+        const alertTypeFilter = document.getElementById('alertTypeFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        
+        // Filter alerts
+        const filteredAlerts = allAlerts.filter(alert => {
+          // Search term
+          const field = fieldsData.find(f => f.id === alert.fieldId) || { name: 'Unknown Field' };
+          const matchesSearch = 
+            !searchTerm ||
+            alert.name.toLowerCase().includes(searchTerm) ||
+            field.name.toLowerCase().includes(searchTerm);
+          
+          // Field filter
+          const matchesField = !fieldFilter || alert.fieldId.toString() === fieldFilter;
+          
+          // Alert type filter
+          const matchesType = !alertTypeFilter || alert.alertType === alertTypeFilter;
+          
+          // Status filter
+          let matchesStatus = true;
+          if (statusFilter) {
+            if (statusFilter === 'active') {
+              matchesStatus = alert.active;
+            } else if (statusFilter === 'inactive') {
+              matchesStatus = !alert.active;
+            } else if (statusFilter === 'triggered') {
+              matchesStatus = alert.lastTriggered && (new Date() - new Date(alert.lastTriggered)) < 24 * 60 * 60 * 1000;
+            }
+          }
+          
+          return matchesSearch && matchesField && matchesType && matchesStatus;
+        });
+        
+        // Render filtered alerts
+        renderFilteredAlerts(filteredAlerts);
+      }
+      
+      // Render filtered alerts
+      function renderFilteredAlerts(alerts) {
+        const activeAlertsContainer = document.getElementById('activeAlertsContainer');
+        const alertHistoryBody = document.getElementById('alertHistoryBody');
+        
+        // Clear existing content
+        activeAlertsContainer.innerHTML = '';
+        alertHistoryBody.innerHTML = '';
+        
+        // Render active alert cards (only those that are active)
+        const activeAlerts = alerts.filter(alert => alert.active);
+        
+        // Render active alert cards
+        activeAlerts.forEach(alert => {
+          activeAlertsContainer.appendChild(createAlertCard(alert));
+        });
+        
+        // If no active alerts, show a message
+        if (activeAlerts.length === 0) {
+          activeAlertsContainer.innerHTML = '<div class="col-span-3 text-center text-gray-500 dark:text-gray-400 py-8">No matching active alerts found.</div>';
+        }
+        
+        // Render all matching alerts in the history table
+        alerts.forEach(alert => {
+          alertHistoryBody.appendChild(createAlertTableRow(alert));
+        });
+        
+        // If no alerts in history, show a message
+        if (alerts.length === 0) {
+          alertHistoryBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No matching alerts found.</td></tr>';
+        }
+      }
+      
+      // Open the configure alert modal for creating a new alert
+      function openConfigureAlertModal() {
+        // Reset form
+        document.getElementById('alertForm').reset();
+        document.getElementById('alertId').value = '';
+        document.getElementById('alertModalTitle').textContent = 'Configure New Alert';
+        
+        // Reset second threshold container visibility
+        document.getElementById('secondThresholdContainer').classList.add('hidden');
+        
+        // Reset notification containers
+        document.getElementById('emailContainer').style.display = 'block';
+        document.getElementById('smsContainer').style.display = 'none';
+        
+        // Open modal
+        openModal(document.getElementById('configureAlertModal'));
+        
+        // Set focus on first input
+        setTimeout(() => {
+          document.getElementById('alertName').focus();
+        }, 100);
+        
+        // Reset editing state
+        isEditing = false;
+      }
+      
+      // Show alert details
+      function showAlertDetails(alert) {
+        currentAlert = alert;
+        
+        // Get related field
+        const field = fieldsData.find(f => f.id === alert.fieldId) || { name: 'Unknown Field' };
+        
+        // Update detail modal content
+        document.getElementById('detailAlertName').textContent = alert.name;
+        document.getElementById('detailFieldName').textContent = field.name;
+        
+        // Set alert type
+        let alertTypeClass = 'alert-temperature';
+        let alertTypeIcon = 'fas fa-thermometer-half';
+        let alertTypeText = 'Temperature';
+        
+        switch (alert.alertType) {
+          case 'rainfall':
+            alertTypeClass = 'alert-rainfall';
+            alertTypeIcon = 'fas fa-cloud-rain';
+            alertTypeText = 'Rainfall';
+            break;
+          case 'ndvi':
+            alertTypeClass = 'alert-ndvi';
+            alertTypeIcon = 'fas fa-leaf';
+            alertTypeText = 'NDVI';
+            break;
+          case 'wind':
+            alertTypeClass = 'alert-wind';
+            alertTypeIcon = 'fas fa-wind';
+            alertTypeText = 'Wind Speed';
+            break;
+        }
+        
+        document.getElementById('detailAlertType').innerHTML = `
+          <span class="alert-type-badge ${alertTypeClass} mr-2">
+            <i class="${alertTypeIcon} mr-1"></i> ${alertTypeText}
+          </span>
+        `;
+        
+        // Set condition
+        document.getElementById('detailCondition').textContent = getConditionText(alert);
+        
+        // Set duration
+        document.getElementById('detailDuration').textContent = `For ${alert.durationHours} hour${alert.durationHours !== 1 ? 's' : ''}`;
+        
+        // Set notification methods
+        const notificationMethods = [];
+        if (alert.emailNotification) {
+          notificationMethods.push(`Email to ${alert.notificationEmails}`);
+        }
+        if (alert.smsNotification) {
+          notificationMethods.push(`SMS to ${alert.phoneNumbers}`);
+        }
+        
+        document.getElementById('detailNotificationMethod').textContent = notificationMethods.join(', ') || 'None';
+        
+        // Set notification frequency
+        document.getElementById('detailFrequency').textContent = getNotificationFrequencyText(alert.notificationFrequency);
+        
+        // Set alert status
+        let statusBadgeClass = 'alert-status-active';
+        let statusText = 'Active';
+        
+        if (!alert.active) {
+          statusBadgeClass = 'alert-status-inactive';
+          statusText = 'Inactive';
+        } else if (alert.lastTriggered && (new Date() - new Date(alert.lastTriggered)) < 24 * 60 * 60 * 1000) {
+          statusBadgeClass = 'alert-status-triggered';
+          statusText = 'Triggered';
+        }
+        
+        document.getElementById('detailAlertStatus').className = `alert-status-badge ${statusBadgeClass}`;
+        document.getElementById('detailAlertStatus').innerHTML = `${getStatusIconHTML(statusText)} ${statusText}`;
+        
+        // Render trigger history
+        const triggerHistoryContainer = document.getElementById('triggerHistory');
+        triggerHistoryContainer.innerHTML = '';
+        
+        if (alert.triggerHistory && alert.triggerHistory.length > 0) {
+          // Sort by timestamp, newest first
+          const sortedHistory = [...alert.triggerHistory].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+          );
+          
+          sortedHistory.forEach(history => {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'flex justify-between items-center text-sm';
+            
+            const getValueWithUnit = (value) => {
+              switch (alert.alertType) {
+                case 'temperature':
+                  return `${value}°C`;
+                case 'rainfall':
+                  return `${value}mm`;
+                case 'ndvi':
+                  return value;
+                case 'wind':
+                  return `${value}km/h`;
+                default:
+                  return value;
+              }
+            };
+            
+            historyItem.innerHTML = `
+              <div>
+                <span class="text-gray-900 dark:text-white">${getValueWithUnit(history.value)}</span>
+                ${history.notificationSent ? 
+                  '<span class="text-xs ml-2 text-blue-500"><i class="fas fa-envelope"></i> Sent</span>' : 
+                  '<span class="text-xs ml-2 text-gray-500">No notification</span>'}
+              </div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">${formatDate(history.timestamp)}</div>
+            `;
+            
+            triggerHistoryContainer.appendChild(historyItem);
+          });
+        } else {
+          triggerHistoryContainer.innerHTML = '<div class="text-center text-gray-500 dark:text-gray-400 py-2">No trigger history available</div>';
+        }
+        
+        // Set current status
+        if (!alert.active) {
+          document.getElementById('statusDescription').textContent = 'Alert is currently inactive';
+        } else if (alert.lastTriggered && (new Date() - new Date(alert.lastTriggered)) < 24 * 60 * 60 * 1000) {
+          document.getElementById('statusDescription').innerHTML = '<span class="text-red-500">Alert condition is currently triggered</span>';
+        } else {
+          document.getElementById('statusDescription').textContent = 'Monitoring for conditions';
+        }
+        
+        // Set last checked time
+        document.getElementById('lastChecked').textContent = 'Last checked: 5 minutes ago';
+        
+        // Update toggle button text based on current status
+        const toggleBtn = document.getElementById('toggleAlertBtn');
+        if (alert.active) {
+          toggleBtn.innerHTML = '<i class="fas fa-pause mr-2"></i>Pause Alert';
+        } else {
+          toggleBtn.innerHTML = '<i class="fas fa-play mr-2"></i>Activate Alert';
+        }
+        
+        // Open modal
+        openModal(document.getElementById('alertDetailsModal'));
+      }
+      
+      // Edit an existing alert
+      function editAlert(alert) {
+        // Set editing state
+        isEditing = true;
+        
+        // Fill form with alert data
+        document.getElementById('alertModalTitle').textContent = 'Edit Alert';
+        document.getElementById('alertId').value = alert.id;
+        document.getElementById('alertName').value = alert.name;
+        document.getElementById('fieldSelect').value = alert.fieldId;
+        document.getElementById('alertType').value = alert.alertType;
+        document.getElementById('conditionType').value = alert.conditionType;
+        document.getElementById('thresholdValue').value = alert.thresholdValue;
+        
+        // Handle second threshold for between conditions
+        if (alert.conditionType === 'between') {
+          document.getElementById('secondThresholdContainer').classList.remove('hidden');
+          document.getElementById('secondThresholdValue').value = alert.secondThresholdValue;
+        } else {
+          document.getElementById('secondThresholdContainer').classList.add('hidden');
+        }
+        
+        document.getElementById('durationHours').value = alert.durationHours;
+        document.getElementById('emailNotification').checked = alert.emailNotification;
+        document.getElementById('notificationEmails').value = alert.notificationEmails;
+        document.getElementById('smsNotification').checked = alert.smsNotification;
+        document.getElementById('phoneNumbers').value = alert.phoneNumbers;
+        document.getElementById('notificationFrequency').value = alert.notificationFrequency;
+        document.getElementById('alertActive').checked = alert.active;
+        
+        // Set notification container display
+        document.getElementById('emailContainer').style.display = alert.emailNotification ? 'block' : 'none';
+        document.getElementById('smsContainer').style.display = alert.smsNotification ? 'block' : 'none';
+        
+        // Update threshold labels based on alert type
+        updateThresholdLabels(alert.alertType);
+        
+        // Close details modal if open
+        closeModal(document.getElementById('alertDetailsModal'));
+        
+        // Open edit modal
+        openModal(document.getElementById('configureAlertModal'));
+      }
+      
+      // Update threshold labels based on alert type
+      function updateThresholdLabels(alertType) {
+        const thresholdLabel = document.querySelector('label[for="thresholdValue"]');
+        const secondThresholdLabel = document.querySelector('label[for="secondThresholdValue"]');
+        
+        let unit = '';
+        switch (alertType) {
+          case 'temperature':
+            unit = '°C';
+            break;
+          case 'rainfall':
+            unit = 'mm';
+            break;
+          case 'ndvi':
+            unit = '';
+            break;
+          case 'wind':
+            unit = 'km/h';
+            break;
+        }
+        
+        thresholdLabel.textContent = `Threshold Value ${unit ? '(' + unit + ')' : ''}`;
+        secondThresholdLabel.textContent = `Upper Threshold ${unit ? '(' + unit + ')' : ''}`;
+      }
+      
+      // Save alert data
+      function saveAlert() {
+        // Collect form data
+        const alertId = document.getElementById('alertId').value;
+        const alertData = {
+          name: document.getElementById('alertName').value,
+          fieldId: parseInt(document.getElementById('fieldSelect').value),
+          alertType: document.getElementById('alertType').value,
+          conditionType: document.getElementById('conditionType').value,
+          thresholdValue: parseFloat(document.getElementById('thresholdValue').value),
+          secondThresholdValue: document.getElementById('conditionType').value === 'between' ? 
+            parseFloat(document.getElementById('secondThresholdValue').value) : null,
+          durationHours: parseInt(document.getElementById('durationHours').value),
+          emailNotification: document.getElementById('emailNotification').checked,
+          notificationEmails: document.getElementById('notificationEmails').value,
+          smsNotification: document.getElementById('smsNotification').checked,
+          phoneNumbers: document.getElementById('phoneNumbers').value,
+          notificationFrequency: document.getElementById('notificationFrequency').value,
+          active: document.getElementById('alertActive').checked
+        };
+        
+        // Validate form
+        if (!alertData.name) {
+          showNotification('Please enter an alert name', 'error');
+          return;
+        }
+        
+        if (!alertData.fieldId) {
+          showNotification('Please select a field', 'error');
+          return;
+        }
+        
+        if (!alertData.alertType) {
+          showNotification('Please select an alert type', 'error');
+          return;
+        }
+        
+        if (isNaN(alertData.thresholdValue)) {
+          showNotification('Please enter a valid threshold value', 'error');
+          return;
+        }
+        
+        if (alertData.conditionType === 'between' && isNaN(alertData.secondThresholdValue)) {
+          showNotification('Please enter a valid upper threshold value', 'error');
+          return;
+        }
+        
+        if (alertData.emailNotification && !alertData.notificationEmails) {
+          showNotification('Please enter email recipients or disable email notifications', 'error');
+          return;
+        }
+        
+        if (alertData.smsNotification && !alertData.phoneNumbers) {
+          showNotification('Please enter phone numbers or disable SMS notifications', 'error');
+          return;
+        }
+        
+        // Check if editing or creating new
+        if (isEditing && alertId) {
+          // Update existing alert
+          const index = allAlerts.findIndex(a => a.id.toString() === alertId);
+          if (index !== -1) {
+            // Preserve fields that shouldn't be overwritten
+            alertData.id = allAlerts[index].id;
+            alertData.lastTriggered = allAlerts[index].lastTriggered;
+            alertData.triggerHistory = allAlerts[index].triggerHistory;
+            alertData.createdAt = allAlerts[index].createdAt;
+            alertData.updatedAt = new Date().toISOString();
+            
+            // Update alert in array
+            allAlerts[index] = alertData;
+            
+            showNotification('Alert updated successfully', 'success');
+          }
+        } else {
+          // Create new alert
+          alertData.id = Math.max(...allAlerts.map(a => a.id), 0) + 1;
+          alertData.lastTriggered = null;
+          alertData.triggerHistory = [];
+          alertData.createdAt = new Date().toISOString();
+          alertData.updatedAt = new Date().toISOString();
+          
+          // Add to alerts array
+          allAlerts.push(alertData);
+          
+          showNotification('Alert created successfully', 'success');
+        }
+        
+        // Update UI
+        renderAlerts();
+        updateAlertStats();
+        
+        // Close modal
+        closeModal(document.getElementById('configureAlertModal'));
+      }
+      
+      // Toggle alert status
+      function toggleAlertStatus(alert) {
+        // Find alert in array
+        const index = allAlerts.findIndex(a => a.id === alert.id);
+        if (index !== -1) {
+          // Toggle active state
+          allAlerts[index].active = !allAlerts[index].active;
+          allAlerts[index].updatedAt = new Date().toISOString();
+          
+          // Update UI
+          renderAlerts();
+          updateAlertStats();
+          
+          // Show notification
+          showNotification(`Alert ${allAlerts[index].active ? 'activated' : 'paused'} successfully`, 'success');
+          
+          // Close modal
+          closeModal(document.getElementById('alertDetailsModal'));
+        }
+      }
+      
+      // Open delete confirmation modal
+      function openDeleteConfirmModal(alert) {
+        currentAlert = alert;
+        document.getElementById('delete-confirm-text').textContent = `Are you sure you want to delete the alert "${alert.name}"? This action cannot be undone.`;
+        openModal(document.getElementById('deleteConfirmModal'));
+      }
+      
+      // Delete an alert
+      function deleteAlert(alert) {
+        if (!alert) return;
+        
+        // Find and remove alert from array
+        const index = allAlerts.findIndex(a => a.id === alert.id);
+        if (index !== -1) {
+          allAlerts.splice(index, 1);
+          
+          // Update UI
+          renderAlerts();
+          updateAlertStats();
+          
+          // Show notification
+          showNotification('Alert deleted successfully', 'success');
+        }
+      }
+      
+      // Open test alert modal
+      function openTestAlertModal(alert) {
+        currentAlert = alert;
+        
+        // Reset form
+        document.getElementById('testMessage').value = '';
+        document.getElementById('testAllRecipients').checked = true;
+        document.getElementById('testRecipients').value = '';
+        document.getElementById('testRecipientsContainer').classList.add('hidden');
+        
+        // Open modal
+        openModal(document.getElementById('testAlertModal'));
+      }
+      
+      // Send test alert
+      function sendTestAlert() {
+        if (!currentAlert) return;
+        
+        // Get test message
+        const testMessage = document.getElementById('testMessage').value;
+        const sendToAll = document.getElementById('testAllRecipients').checked;
+        const testRecipients = document.getElementById('testRecipients').value;
+        
+        // Validate recipients if not sending to all
+        if (!sendToAll && !testRecipients) {
+          showNotification('Please enter a test recipient or select "Send to all configured recipients"', 'error');
+          return;
+        }
+        
+        // In a real implementation, this would send a request to the backend
+        // For demo, just show a success notification
+        showNotification('Test alert sent successfully', 'success');
+        
+        // Close modal
+        closeModal(document.getElementById('testAlertModal'));
+      }
+      
+      // Set up polling for alert status updates
+      function setupAlertStatusPolling() {
+        // Check alert conditions every minute in a real implementation
+        // For demo, we'll set a longer interval to avoid unnecessary processing
+        setInterval(checkAlertConditions, 60000);
+      }
+      
+      // Check alert conditions
+      function checkAlertConditions() {
+        // In a real implementation, this would fetch the latest data for each field
+        // and check against the alert conditions
+        
+        console.log('Checking alert conditions...');
+        
+        // For demo, we'll simulate some random alerts being triggered
+        if (allAlerts.length === 0) return;
+        
+        // Randomly select an alert to simulate triggering
+        if (Math.random() > 0.7) { // 30% chance of triggering an alert
+          const randomIndex = Math.floor(Math.random() * allAlerts.length);
+          const alert = allAlerts[randomIndex];
+          
+          // Only trigger if the alert is active
+          if (alert.active) {
+            simulateAlertTrigger(alert);
+          }
+        }
+      }
+      
+      // Simulate an alert being triggered
+      function simulateAlertTrigger(alert) {
+        console.log(`Simulating trigger for alert: ${alert.name}`);
+        
+        // Generate a plausible value that would trigger the alert
+        let value;
+        switch (alert.conditionType) {
+          case 'lessThan':
+            value = alert.thresholdValue - (Math.random() * 2);
+            break;
+          case 'greaterThan':
+            value = alert.thresholdValue + (Math.random() * 5);
+            break;
+          case 'equals':
+            value = alert.thresholdValue;
+            break;
+          case 'between':
+            value = alert.thresholdValue + (Math.random() * (alert.secondThresholdValue - alert.thresholdValue));
+            break;
+          default:
+            value = alert.thresholdValue;
+        }
+        
+        // Round to 2 decimal places
+        value = Math.round(value * 100) / 100;
+        
+        // Update alert in the array
+        const index = allAlerts.findIndex(a => a.id === alert.id);
+        if (index !== -1) {
+          // Set last triggered time
+          allAlerts[index].lastTriggered = new Date().toISOString();
+          
+          // Add to trigger history
+          allAlerts[index].triggerHistory.push({
+            timestamp: new Date().toISOString(),
+            value: value,
+            notificationSent: true
+          });
+          
+          // Keep history limited to last 10 events
+          if (allAlerts[index].triggerHistory.length > 10) {
+            allAlerts[index].triggerHistory.shift();
+          }
+          
+          // Update UI if this is the current alert being viewed
+          if (currentAlert && currentAlert.id === alert.id) {
+            showAlertDetails(allAlerts[index]);
+          }
+          
+          // Refresh the alerts display
+          renderAlerts();
+          updateAlertStats();
+          
+          // Show notification
+          showNotification(`Alert triggered: ${alert.name}`, 'warning');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
