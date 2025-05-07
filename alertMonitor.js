@@ -10,14 +10,15 @@ const db = require('./database');
 
 // Configure email transport
 const emailTransporter = nodemailer.createTransport({
-  host: 'smtp.example.com',
-  port: 587,
-  secure: false,
+  host: 'mail.yieldera.co.zw',
+  port: 465,
+  secure: true,
   auth: {
-    user: 'alerts@yieldera.com',
-    pass: 'your-password'
+    user: 'alerts@yieldera.co.zw',
+    pass: process.env.SMTP_PASSWORD
   }
 });
+
 
 // Configure SMS client (Twilio)
 const twilioClient = process.env.TWILIO_ENABLED === 'true' ? 
