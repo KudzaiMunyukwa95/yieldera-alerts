@@ -22,3 +22,8 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Yieldera Alerts server running on port ${PORT}`);
 });
+
+app.post('/alerts/test-dummy', (req, res) => {
+  res.json({ success: true, message: 'Test POST route working!' });
+});
+
