@@ -7,14 +7,15 @@ const { checkCondition } = require('./alertMonitor'); // Import helper functions
 
 // Configure email transport
 const emailTransporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.example.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
+  host: process.env.SMTP_HOST || 'mail.yieldera.co.zw',
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: true,
   auth: {
-    user: process.env.SMTP_USER || 'alerts@yieldera.com',
-    pass: process.env.SMTP_PASSWORD || 'your-password'
+    user: process.env.SMTP_USER || 'alerts@yieldera.co.zw',
+    pass: process.env.SMTP_PASSWORD
   }
 });
+
 
 // Configure SMS client (Twilio)
 const twilioClient = process.env.TWILIO_ENABLED === 'true' ? 
