@@ -1,4 +1,5 @@
 // database.js
+
 const mysql = require('mysql2/promise');
 
 const pool = mysql.createPool({
@@ -7,12 +8,30 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 10
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
-module.exports = {
-  query: async (sql, params) => {
-    const [results] = await pool.execute(sql, params);
-    return results;
+// Simple wrapper for executing queries
+async function query(sql, params) {
+  try {
+    const [rows, fields] = await pool.execute(sql, params);
+    return rows;
+  } catch (error) {
+    console.error("❌ DB Query Error:", error.message);
+    throw error;
   }
-};
+}
+
+// Test connection at startup
+(async () => {
+  try {
+    const conn = await pool.getConnection();
+    console.log("✅ Database connection established.");
+    conn.release();
+  } catch (err) {
+    console.error("❌ Failed to connect to DB:", err.message);
+  }
+})();
+
+module.exports = { query };
