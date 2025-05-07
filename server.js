@@ -1,29 +1,25 @@
-const express = require('express');
-const publicIp = require('public-ip');
-const app = express();
-const alertController = require('./alertController');
+// server.js
 
-// Middleware
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { testAlert } = require('./alertController');
+
+const app = express();
+
+app.use(cors());
 app.use(express.json());
 
-// Test route
+// Root route
 app.get('/', (req, res) => {
-  res.send('Yieldera Alerts Backend is live!');
+  res.send('✅ Yieldera Alerts Backend is live!');
 });
 
-// Alert test route
-app.post('/alerts/:id/test', alertController.testAlert);
+// Test alert route
+app.post('/alerts/:id/test', testAlert);
 
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
+// Start server
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
   console.log(`🚀 Yieldera Alerts server running on port ${PORT}`);
-
-  // Log outbound IP
-  try {
-    const ip = await publicIp.v4();
-    console.log(`🌍 Public outbound IP: ${ip}`);
-  } catch (err) {
-    console.error('⚠️ Failed to get public IP:', err.message);
-  }
 });
