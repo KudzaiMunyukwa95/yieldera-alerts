@@ -1,25 +1,29 @@
-// server.js - Main entry point for the Yieldera Alerts backend
-
 const express = require('express');
-const cors = require('cors');
+const publicIp = require('public-ip');
+const app = express();
 const alertController = require('./alertController');
 
-const app = express();
-
 // Middleware
-app.use(cors());
 app.use(express.json());
 
 // Test route
 app.get('/', (req, res) => {
-  res.send('🌾 Yieldera Alerts Backend is live!');
+  res.send('Yieldera Alerts Backend is live!');
 });
 
-// Mount the alerts controller
-app.use('/alerts', alertController);
+// Alert test route
+app.post('/alerts/:id/test', alertController.testAlert);
 
 // Start the server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Yieldera Alerts server running on port ${PORT}`);
+
+  // Log outbound IP
+  try {
+    const ip = await publicIp.v4();
+    console.log(`🌍 Public outbound IP: ${ip}`);
+  } catch (err) {
+    console.error('⚠️ Failed to get public IP:', err.message);
+  }
 });
