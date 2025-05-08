@@ -1,5 +1,3 @@
-// apiRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const alertController = require('./alertController');
@@ -27,12 +25,12 @@ router.put('/alerts/:id', alertController.updateAlert);
 router.delete('/alerts/:id', alertController.deleteAlert);
 router.post('/alerts/:id/test', alertController.testAlert);
 
-// ✅ Optional placeholder — only include if defined
-if (alertController.getAlertHistory) {
+// 🌟 Optional placeholder routes (only bind if function exists)
+if (typeof alertController.getAlertHistory === 'function') {
   router.get('/alerts/:id/history', alertController.getAlertHistory);
 }
 
-if (alertController.getAlertStats) {
+if (typeof alertController.getAlertStats === 'function') {
   router.get('/alerts/stats', alertController.getAlertStats);
 }
 
