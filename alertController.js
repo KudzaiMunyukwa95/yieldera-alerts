@@ -12,7 +12,7 @@ const emailTransporter = nodemailer.createTransport({
   }
 });
 
-// TEST ALERT
+// POST /alerts/:id/test
 const testAlert = async (req, res) => {
   try {
     const alertId = req.params.id;
@@ -20,7 +20,7 @@ const testAlert = async (req, res) => {
     const alert = rows[0];
     if (!alert) return res.status(404).json({ success: false, message: 'Alert not found' });
 
-    const { testMessage = '🚨 This is a test of the alert system.', testRecipients, sendToAll } = req.body;
+    const { testMessage = '🚨 This is a test alert.', testRecipients, sendToAll } = req.body;
     const recipients = sendToAll
       ? alert.notification_emails.split(',').map(e => e.trim())
       : testRecipients.split(',').map(e => e.trim());
@@ -36,12 +36,12 @@ const testAlert = async (req, res) => {
     const info = await emailTransporter.sendMail(mailOptions);
     res.status(200).json({ success: true, message: '✅ Test email sent successfully', info });
   } catch (err) {
-    console.error('Test alert error:', err);
-    res.status(500).json({ success: false, message: 'Test alert failed', error: err.message });
+    console.error('❌ Error in testAlert:', err);
+    res.status(500).json({ success: false, message: 'Server error during test alert', error: err.message });
   }
 };
 
-// CREATE
+// POST /alerts
 const createAlert = async (req, res) => {
   const {
     field_id,
@@ -50,7 +50,7 @@ const createAlert = async (req, res) => {
     threshold_value,
     duration_hours,
     notification_emails,
-    active
+    active = 1
   } = req.body;
 
   const [result] = await db.query(
@@ -62,19 +62,7 @@ const createAlert = async (req, res) => {
   res.status(201).json({ success: true, id: result.insertId });
 };
 
-// READ
-const getAllAlerts = async (req, res) => {
-  const [rows] = await db.query('SELECT * FROM alerts ORDER BY id DESC');
-  res.json(rows);
-};
-
-const getAlertById = async (req, res) => {
-  const [rows] = await db.query('SELECT * FROM alerts WHERE id = ?', [req.params.id]);
-  if (!rows.length) return res.status(404).json({ success: false, message: 'Alert not found' });
-  res.json(rows[0]);
-};
-
-// UPDATE
+// PUT /alerts/:id
 const updateAlert = async (req, res) => {
   const {
     field_id,
@@ -95,22 +83,35 @@ const updateAlert = async (req, res) => {
   res.json({ success: true, affectedRows: result.affectedRows });
 };
 
-// DELETE
+// GET /alerts
+const getAllAlerts = async (req, res) => {
+  const [rows] = await db.query('SELECT * FROM alerts ORDER BY id DESC');
+  res.json(rows);
+};
+
+// GET /alerts/:id
+const getAlertById = async (req, res) => {
+  const [rows] = await db.query('SELECT * FROM alerts WHERE id = ?', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ success: false, message: 'Alert not found' });
+  res.json(rows[0]);
+};
+
+// DELETE /alerts/:id
 const deleteAlert = async (req, res) => {
   const [result] = await db.query('DELETE FROM alerts WHERE id = ?', [req.params.id]);
   res.json({ success: true, affectedRows: result.affectedRows });
 };
 
-// Placeholders for expansion
+// Placeholder routes for future use
 const getAlertHistory = (req, res) => res.json({ message: 'Alert history not yet implemented.' });
 const getAlertStats = (req, res) => res.json({ message: 'Alert stats not yet implemented.' });
 
 module.exports = {
   testAlert,
   createAlert,
+  updateAlert,
   getAllAlerts,
   getAlertById,
-  updateAlert,
   deleteAlert,
   getAlertHistory,
   getAlertStats
