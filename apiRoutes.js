@@ -1,20 +1,33 @@
-// apiRoutes.js - Express routes for the alert API
+// apiRoutes.js
 
 const express = require('express');
 const router = express.Router();
 const alertController = require('./alertController');
+const db = require('./database');
 
-// Alert CRUD
+// 🌾 FIELD ROUTES
+router.get('/fields', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM fields ORDER BY id DESC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch fields',
+      error: err.message
+    });
+  }
+});
+
+// 🌾 ALERT ROUTES
 router.get('/alerts', alertController.getAllAlerts);
 router.get('/alerts/:id', alertController.getAlertById);
 router.post('/alerts', alertController.createAlert);
 router.put('/alerts/:id', alertController.updateAlert);
 router.delete('/alerts/:id', alertController.deleteAlert);
-
-// Alert Test
 router.post('/alerts/:id/test', alertController.testAlert);
 
-// Optional/Placeholder Endpoints
+// Optional placeholders
 router.get('/alerts/:id/history', alertController.getAlertHistory);
 router.get('/alerts/stats', alertController.getAlertStats);
 
