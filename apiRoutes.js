@@ -27,8 +27,13 @@ router.put('/alerts/:id', alertController.updateAlert);
 router.delete('/alerts/:id', alertController.deleteAlert);
 router.post('/alerts/:id/test', alertController.testAlert);
 
-// Optional placeholders
-router.get('/alerts/:id/history', alertController.getAlertHistory);
-router.get('/alerts/stats', alertController.getAlertStats);
+// ✅ Optional placeholder — only include if defined
+if (alertController.getAlertHistory) {
+  router.get('/alerts/:id/history', alertController.getAlertHistory);
+}
+
+if (alertController.getAlertStats) {
+  router.get('/alerts/stats', alertController.getAlertStats);
+}
 
 module.exports = router;
