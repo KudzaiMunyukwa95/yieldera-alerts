@@ -4,28 +4,18 @@ const express = require('express');
 const router = express.Router();
 const alertController = require('./alertController');
 
-// Get all alerts
+// Alert CRUD
 router.get('/alerts', alertController.getAllAlerts);
-
-// Get a specific alert
 router.get('/alerts/:id', alertController.getAlertById);
-
-// Create a new alert
 router.post('/alerts', alertController.createAlert);
-
-// Update an alert
 router.put('/alerts/:id', alertController.updateAlert);
-
-// Delete an alert
 router.delete('/alerts/:id', alertController.deleteAlert);
 
-// Get alert history for a specific alert
-router.get('/alerts/:id/history', alertController.getAlertHistory);
-
-// Manually test an alert
+// Alert Test
 router.post('/alerts/:id/test', alertController.testAlert);
 
-// Get alert statistics
+// Optional/Placeholder Endpoints
+router.get('/alerts/:id/history', alertController.getAlertHistory);
 router.get('/alerts/stats', alertController.getAlertStats);
 
 module.exports = router;
