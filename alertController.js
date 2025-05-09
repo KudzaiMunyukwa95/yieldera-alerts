@@ -67,8 +67,20 @@ const updateAlert = async (req, res) => {
 // GET ALL ALERTS
 const getAllAlerts = async (req, res) => {
   try {
-    const [rows] = await db.query(`SELECT * FROM alerts ORDER BY id DESC`);
-    res.status(200).json(rows);
+    const [alerts] = await db.query(`
+      SELECT a.*, f.name as field_name 
+      FROM alerts a
+      LEFT JOIN fields f ON a.field_id = f.id
+      ORDER BY a.id DESC
+    `);
+    
+    // Ensure field_name defaults if the join didn't produce one
+    const processedAlerts = alerts.map(alert => ({
+      ...alert,
+      field_name: alert.field_name || `Field #${alert.field_id}`
+    }));
+    
+    res.status(200).json(processedAlerts);
   } catch (err) {
     console.error('❌ Error fetching alerts:', err);
     res.status(500).json({ success: false, message: 'Fetch failed', error: err.message });
@@ -78,11 +90,24 @@ const getAllAlerts = async (req, res) => {
 // GET ALERT BY ID
 const getAlertById = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM alerts WHERE id = ?', [req.params.id]);
+    const [rows] = await db.query(`
+      SELECT a.*, f.name as field_name 
+      FROM alerts a
+      LEFT JOIN fields f ON a.field_id = f.id
+      WHERE a.id = ?
+    `, [req.params.id]);
+    
     if (!rows.length) {
       return res.status(404).json({ success: false, message: 'Alert not found' });
     }
-    res.json(rows[0]);
+    
+    // Ensure field_name defaults if the join didn't produce one
+    const alert = {
+      ...rows[0],
+      field_name: rows[0].field_name || `Field #${rows[0].field_id}`
+    };
+    
+    res.json(alert);
   } catch (err) {
     console.error('❌ Error getting alert:', err);
     res.status(500).json({ success: false, message: 'Fetch failed', error: err.message });
@@ -104,10 +129,19 @@ const deleteAlert = async (req, res) => {
 const testAlert = async (req, res) => {
   try {
     const alertId = req.params.id;
-    const [rows] = await db.query('SELECT * FROM alerts WHERE id = ?', [alertId]);
+    const [rows] = await db.query(`
+      SELECT a.*, f.name as field_name 
+      FROM alerts a
+      LEFT JOIN fields f ON a.field_id = f.id
+      WHERE a.id = ?
+    `, [alertId]);
+    
     const alert = rows[0];
     if (!alert) return res.status(404).json({ success: false, message: 'Alert not found' });
 
+    // Ensure field_name defaults if the join didn't produce one
+    const fieldName = alert.field_name || `Field #${alert.field_id}`;
+    
     const { testMessage = '🚨 This is a test alert.', testRecipients, sendToAll } = req.body;
     const recipients = sendToAll
       ? alert.notification_emails.split(',').map(e => e.trim())
@@ -116,9 +150,9 @@ const testAlert = async (req, res) => {
     const mailOptions = {
       from: '"Yieldera Alerts" <alerts@yieldera.co.zw>',
       to: recipients.join(','),
-      subject: `TEST: ${alert.alert_type.toUpperCase()} alert for Field #${alert.field_id}`,
-      text: testMessage,
-      html: testMessage.replace(/\n/g, '<br>')
+      subject: `TEST: ${alert.alert_type.toUpperCase()} alert for ${fieldName}`,
+      text: testMessage.replace('{field_name}', fieldName),
+      html: testMessage.replace('{field_name}', fieldName).replace(/\n/g, '<br>')
     };
 
     const info = await emailTransporter.sendMail(mailOptions);
