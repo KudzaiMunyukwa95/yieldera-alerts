@@ -1,5 +1,4 @@
 
-// alertMonitor.js
 const db = require('./database');
 const nodemailer = require('nodemailer');
 const { getProvider } = require('./weatherProviders/providerFactory');
@@ -20,7 +19,7 @@ async function sendEmailNotification(alert, message) {
   const mailOptions = {
     from: '"Yieldera Alerts" <alerts@yieldera.co.zw>',
     to: recipients.join(','),
-    subject: `ALERT: ${alert.name}`,
+    subject: `ALERT: ${alert.name || alert.alert_type.toUpperCase()} condition met`,
     text: message,
     html: message.replace(/\n/g, '<br>')
   };
@@ -48,19 +47,33 @@ async function checkAlerts() {
     for (const alert of alerts) {
       const [fieldRows] = await db.query('SELECT * FROM fields WHERE id = ?', [alert.field_id]);
       const field = fieldRows[0];
-      if (!field || !field.latitude || !field.longitude) continue;
+      if (!field || !field.latitude || !field.longitude) {
+        console.warn(`⚠️ Field ${alert.field_id} missing lat/lon, skipping.`);
+        continue;
+      }
+
+      console.log(`🌐 Fetching weather for field #${field.id} (${field.latitude}, ${field.longitude})`);
       const weather = await weatherProvider.fetchCurrentWeather(field.latitude, field.longitude);
-      if (!weather || !weather[alert.alert_type]) continue;
-      const value = weather[alert.alert_type];
+      const value = weather?.[alert.alert_type];
+
+      console.log(`🔍 Alert #${alert.id} - Type: ${alert.alert_type}, Condition: ${alert.condition_type} ${alert.threshold_value}`);
+      console.log(`→ Current value: ${value}`);
+
+      if (value === undefined || value === null) {
+        console.warn(`⚠️ No data returned for alert type "${alert.alert_type}" — skipping alert #${alert.id}`);
+        continue;
+      }
+
       if (isConditionMet(value, alert.condition_type, alert.threshold_value)) {
-        const msg = `🌦 Alert
-Field: ${field.id}
-${alert.alert_type}: ${value} (${alert.condition_type} ${alert.threshold_value})`;
+        console.log(`🚨 Condition met for alert #${alert.id} → sending email`);
+        const msg = `🌦 Alert\nField: ${field.id}\n${alert.alert_type}: ${value} (${alert.condition_type} ${alert.threshold_value})`;
         await sendEmailNotification(alert, msg);
+      } else {
+        console.log(`ℹ️ Condition not met for alert #${alert.id}`);
       }
     }
   } catch (err) {
-    console.error('❌ Alert monitor error:', err.message);
+    console.error('❌ Error in alert monitor:', err.message);
   }
 }
 
