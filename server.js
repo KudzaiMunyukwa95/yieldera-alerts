@@ -1,36 +1,36 @@
-// server.js
 
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const db = require('./database');
-const apiRoutes = require('./apiRoutes');
+const bodyParser = require('body-parser');
+const routes = require('./apiRoutes');
 
 const app = express();
+const PORT = process.env.PORT || 10000;
 
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// ✅ Mount all API routes
-app.use('/api', apiRoutes);
+app.use('/api', routes);
 
-// ✅ Root health check
+// Health check route
 app.get('/', (req, res) => {
-  res.send('✅ Yieldera Alerts Backend is live!');
+  res.send('🌾 Yieldera Alert API is live!');
 });
 
-// ✅ DB connection check
-app.get('/db-check', async (req, res) => {
-  try {
-    const [rows] = await db.query('SELECT 1 + 1 AS result');
-    res.json({ success: true, result: rows[0].result });
-  } catch (error) {
-    console.error('DB connection test failed:', error);
-    res.status(500).json({ success: false, message: 'Failed to connect to DB', error: error.message });
-  }
-});
-
-const PORT = process.env.PORT || 10000;
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Yieldera Alerts server running on port ${PORT}`);
 });
+
+// DB connection check
+const db = require('./database');
+db.query('SELECT 1', (err) => {
+  if (err) {
+    console.error('❌ Failed to connect to database:', err.message);
+  } else {
+    console.log('✅ Database connection established.');
+  }
+});
+
+// Start alert monitor background engine
+require('./alertMonitor');
