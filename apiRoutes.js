@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const alertController = require('./alertController-updated');
+const alertController = require('./alertController');
 const db = require('./database');
 
 // 🌾 FIELD ROUTES
