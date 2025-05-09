@@ -22,15 +22,16 @@ app.listen(PORT, () => {
   console.log(`🚀 Yieldera Alerts server running on port ${PORT}`);
 });
 
-// DB connection check
+// Async DB connection test for mysql2/promise
 const db = require('./database');
-db.query('SELECT 1', (err) => {
-  if (err) {
-    console.error('❌ Failed to connect to database:', err.message);
-  } else {
+(async () => {
+  try {
+    await db.query('SELECT 1');
     console.log('✅ Database connection established.');
+  } catch (err) {
+    console.error('❌ Failed to connect to database:', err.message);
   }
-});
+})();
 
 // Start alert monitor background engine
 require('./alertMonitor');
