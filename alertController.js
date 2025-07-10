@@ -17,6 +17,21 @@ const fieldNameCache = new Map();
 let fieldCacheLastUpdate = 0;
 const FIELD_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+// Helper function to format numeric values properly
+function formatNumericValue(value) {
+  if (value === null || value === undefined) return value;
+  const num = parseFloat(value);
+  if (isNaN(num)) return value;
+  
+  // If it's a whole number, return as integer
+  if (num % 1 === 0) {
+    return parseInt(num);
+  }
+  
+  // Otherwise return as float, removing unnecessary trailing zeros
+  return parseFloat(num.toFixed(3));
+}
+
 // Update field name cache
 async function updateFieldNameCache() {
   try {
@@ -180,7 +195,7 @@ const getAllAlerts = async (req, res) => {
       ORDER BY a.created_at DESC
     `);
     
-    // Ensure all alerts have field_name populated
+    // Ensure all alerts have field_name populated and format numeric values
     const processedAlerts = alerts.map(alert => {
       if (!alert.field_name || alert.field_name.startsWith('Field #')) {
         // Try to get from cache as fallback
@@ -189,6 +204,13 @@ const getAllAlerts = async (req, res) => {
           alert.field_name = cachedName;
         }
       }
+      
+      // Format numeric values to remove unnecessary decimals
+      alert.threshold_value = formatNumericValue(alert.threshold_value);
+      if (alert.second_threshold_value !== null) {
+        alert.second_threshold_value = formatNumericValue(alert.second_threshold_value);
+      }
+      
       return alert;
     });
     
@@ -227,6 +249,12 @@ const getAlertById = async (req, res) => {
       if (cachedName) {
         alert.field_name = cachedName;
       }
+    }
+    
+    // Format numeric values
+    alert.threshold_value = formatNumericValue(alert.threshold_value);
+    if (alert.second_threshold_value !== null) {
+      alert.second_threshold_value = formatNumericValue(alert.second_threshold_value);
     }
     
     console.log(`✅ Retrieved alert ${alertId}`);
@@ -410,7 +438,17 @@ const getAlertsByField = async (req, res) => {
     `, [fieldId]);
     
     console.log(`✅ Retrieved ${alerts.length} alerts for field ${fieldId}`);
-    res.json(alerts);
+    
+    // Format numeric values for all alerts
+    const formattedAlerts = alerts.map(alert => {
+      alert.threshold_value = formatNumericValue(alert.threshold_value);
+      if (alert.second_threshold_value !== null) {
+        alert.second_threshold_value = formatNumericValue(alert.second_threshold_value);
+      }
+      return alert;
+    });
+    
+    res.json(formattedAlerts);
   } catch (err) {
     console.error('❌ Error fetching field alerts:', err);
     res.status(500).json({ success: false, message: 'Fetch failed', error: err.message });
