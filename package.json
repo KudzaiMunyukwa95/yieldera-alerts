@@ -1,20 +1,44 @@
 {
   "name": "yieldera-alerts",
   "version": "1.0.0",
-  "description": "Yieldera Alerts Backend",
+  "description": "Yieldera Alerts Backend with Email and WhatsApp Notifications",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "monitor": "node alertMonitor.js",
+    "test-whatsapp": "node -e \"require('./whatsappService').testTwilioConnection().then(r => console.log('✅ Success:', r)).catch(e => console.error('❌ Error:', e.message))\"",
+    "check-alerts": "node -e \"require('./alertMonitor').checkAlerts()\"",
+    "health": "curl -s http://localhost:3000/api/health || echo 'Server not running'"
   },
   "dependencies": {
-    "axios": "^1.3.4",
+    "axios": "^1.6.8",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "mysql2": "^3.1.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "mysql2": "^3.9.1",
     "node-schedule": "^2.1.1",
-    "nodemailer": "^6.9.4",
-    "public-ip": "^5.0.0",
-    "twilio": "^4.12.0"
+    "nodemailer": "^6.9.13",
+    "public-ip": "^6.0.2",
+    "twilio": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "weather",
+    "alerts", 
+    "whatsapp",
+    "email",
+    "notifications",
+    "agriculture",
+    "farming"
+  ],
+  "author": "Yieldera Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/yieldera-alerts.git"
   }
 }
