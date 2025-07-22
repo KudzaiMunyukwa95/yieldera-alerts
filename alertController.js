@@ -1,6 +1,5 @@
 const db = require('./database');
 const nodemailer = require('nodemailer');
-const whatsappService = require('./whatsappService');
 
 // Email setup
 const emailTransporter = nodemailer.createTransport({
@@ -63,7 +62,7 @@ async function getFieldName(fieldId) {
   return fieldNameCache.get(fieldId) || `Field #${fieldId}`;
 }
 
-// CREATE ALERT - UPDATED WITH WHATSAPP SUPPORT
+// CREATE ALERT - OPTIMIZED
 const createAlert = async (req, res) => {
   const {
     field_id,
@@ -72,24 +71,14 @@ const createAlert = async (req, res) => {
     threshold_value,
     duration_hours = 0,
     notification_emails,
-    phone_numbers, // NEW: WhatsApp phone numbers
-    sms_notification = 0, // NEW: Enable/disable WhatsApp
     active = 1
   } = req.body;
 
   // Validate required fields
-  if (!field_id || !alert_type || !threshold_value) {
+  if (!field_id || !alert_type || !threshold_value || !notification_emails) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Missing required fields: field_id, alert_type, threshold_value' 
-    });
-  }
-
-  // Validate that at least one notification method is provided
-  if (!notification_emails && !phone_numbers) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'At least one notification method (email or WhatsApp) must be provided' 
+      message: 'Missing required fields: field_id, alert_type, threshold_value, notification_emails' 
     });
   }
 
@@ -111,34 +100,14 @@ const createAlert = async (req, res) => {
     });
   }
 
-  // Validate phone numbers if provided
-  if (phone_numbers && sms_notification) {
-    const numbers = phone_numbers.split(',').map(n => n.trim()).filter(Boolean);
-    const invalidNumbers = numbers.filter(num => !whatsappService.isValidPhoneNumber(num));
-    
-    if (invalidNumbers.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Invalid phone numbers: ${invalidNumbers.join(', ')}. Please use format: +263771234567 or 0771234567` 
-      });
-    }
-  }
-
   try {
     const [result] = await db.query(
-      `INSERT INTO alerts (
-        field_id, alert_type, condition_type, threshold_value, duration_hours, 
-        notification_emails, phone_numbers, sms_notification, active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [
-        field_id, alert_type, condition_type, threshold_value, duration_hours, 
-        notification_emails || null, phone_numbers || null, sms_notification, active
-      ]
+      `INSERT INTO alerts (field_id, alert_type, condition_type, threshold_value, duration_hours, notification_emails, active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [field_id, alert_type, condition_type, threshold_value, duration_hours, notification_emails, active]
     );
 
     console.log(`✅ Created alert ${result.insertId} for field ${field_id}`);
-    console.log(`📧 Email: ${notification_emails ? 'Yes' : 'No'}, 📱 WhatsApp: ${sms_notification && phone_numbers ? 'Yes' : 'No'}`);
-    
     res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('❌ Error inserting alert:', err);
@@ -146,7 +115,7 @@ const createAlert = async (req, res) => {
   }
 };
 
-// UPDATE ALERT - UPDATED WITH WHATSAPP SUPPORT
+// UPDATE ALERT - OPTIMIZED
 const updateAlert = async (req, res) => {
   const alertId = req.params.id;
   const {
@@ -156,38 +125,15 @@ const updateAlert = async (req, res) => {
     threshold_value,
     duration_hours = 0,
     notification_emails,
-    phone_numbers, // NEW: WhatsApp phone numbers
-    sms_notification = 0, // NEW: Enable/disable WhatsApp
     active
   } = req.body;
 
   // Validate required fields
-  if (!field_id || !alert_type || !threshold_value) {
+  if (!field_id || !alert_type || !threshold_value || !notification_emails) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Missing required fields: field_id, alert_type, threshold_value' 
+      message: 'Missing required fields: field_id, alert_type, threshold_value, notification_emails' 
     });
-  }
-
-  // Validate that at least one notification method is provided
-  if (!notification_emails && !phone_numbers) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'At least one notification method (email or WhatsApp) must be provided' 
-    });
-  }
-
-  // Validate phone numbers if provided
-  if (phone_numbers && sms_notification) {
-    const numbers = phone_numbers.split(',').map(n => n.trim()).filter(Boolean);
-    const invalidNumbers = numbers.filter(num => !whatsappService.isValidPhoneNumber(num));
-    
-    if (invalidNumbers.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Invalid phone numbers: ${invalidNumbers.join(', ')}. Please use format: +263771234567 or 0771234567` 
-      });
-    }
   }
 
   try {
@@ -199,15 +145,10 @@ const updateAlert = async (req, res) => {
         threshold_value = ?, 
         duration_hours = ?, 
         notification_emails = ?, 
-        phone_numbers = ?,
-        sms_notification = ?,
         active = ?,
         updated_at = NOW()
        WHERE id = ?`,
-      [
-        field_id, alert_type, condition_type, threshold_value, duration_hours, 
-        notification_emails || null, phone_numbers || null, sms_notification, active, alertId
-      ]
+      [field_id, alert_type, condition_type, threshold_value, duration_hours, notification_emails, active, alertId]
     );
 
     if (result.affectedRows === 0) {
@@ -222,7 +163,7 @@ const updateAlert = async (req, res) => {
   }
 };
 
-// GET ALL ALERTS - ALREADY SUPPORTS WHATSAPP FIELDS
+// GET ALL ALERTS - OPTIMIZED WITH PROPER FIELD NAME JOIN
 const getAllAlerts = async (req, res) => {
   try {
     // Update field name cache before querying
@@ -281,7 +222,7 @@ const getAllAlerts = async (req, res) => {
   }
 };
 
-// GET ALERT BY ID - ALREADY SUPPORTS WHATSAPP FIELDS
+// GET ALERT BY ID - OPTIMIZED
 const getAlertById = async (req, res) => {
   try {
     const alertId = req.params.id;
@@ -324,7 +265,7 @@ const getAlertById = async (req, res) => {
   }
 };
 
-// DELETE ALERT - NO CHANGES NEEDED
+// DELETE ALERT - OPTIMIZED
 const deleteAlert = async (req, res) => {
   try {
     const alertId = req.params.id;
@@ -343,7 +284,7 @@ const deleteAlert = async (req, res) => {
   }
 };
 
-// TEST ALERT EMAIL AND WHATSAPP - UPDATED
+// TEST ALERT EMAIL - OPTIMIZED
 const testAlert = async (req, res) => {
   try {
     const alertId = req.params.id;
@@ -371,92 +312,105 @@ const testAlert = async (req, res) => {
     const { 
       testMessage = '🚨 This is a test alert notification.', 
       testRecipients, 
-      testPhoneNumbers, // NEW: Test WhatsApp numbers
-      sendToAll = false,
-      testWhatsApp = false // NEW: Enable WhatsApp testing
+      sendToAll = false 
     } = req.body;
 
-    let emailResults = null;
-    let whatsappResults = null;
-
-    // Test Email Notifications
-    if (alert.notification_emails) {
-      // Determine email recipients
-      let emailRecipients = [];
-      if (sendToAll && alert.notification_emails) {
-        emailRecipients = alert.notification_emails.split(',').map(e => e.trim()).filter(Boolean);
-      } else if (testRecipients) {
-        emailRecipients = testRecipients.split(',').map(e => e.trim()).filter(Boolean);
-      }
-
-      if (emailRecipients.length > 0) {
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const invalidEmails = emailRecipients.filter(email => !emailRegex.test(email));
-        if (invalidEmails.length > 0) {
-          return res.status(400).json({ 
-            success: false, 
-            message: `Invalid email addresses: ${invalidEmails.join(', ')}` 
-          });
-        }
-
-        // Send test email
-        try {
-          await sendTestEmail(alert, emailRecipients, testMessage);
-          emailResults = { success: true, recipients: emailRecipients };
-        } catch (error) {
-          emailResults = { success: false, error: error.message };
-        }
-      }
+    // Determine recipients
+    let recipients = [];
+    if (sendToAll && alert.notification_emails) {
+      recipients = alert.notification_emails.split(',').map(e => e.trim()).filter(Boolean);
+    } else if (testRecipients) {
+      recipients = testRecipients.split(',').map(e => e.trim()).filter(Boolean);
     }
 
-    // Test WhatsApp Notifications
-    if (testWhatsApp && (alert.phone_numbers || testPhoneNumbers)) {
-      // Determine WhatsApp recipients
-      let phoneNumbers = '';
-      if (sendToAll && alert.phone_numbers) {
-        phoneNumbers = alert.phone_numbers;
-      } else if (testPhoneNumbers) {
-        phoneNumbers = testPhoneNumbers;
-      }
-
-      if (phoneNumbers.trim()) {
-        try {
-          whatsappResults = await whatsappService.sendTestWhatsApp(
-            phoneNumbers, 
-            testMessage, 
-            alert.field_name
-          );
-        } catch (error) {
-          whatsappResults = { success: false, error: error.message };
-        }
-      }
-    }
-
-    // Prepare response
-    const response = {
-      success: true,
-      message: 'Test notifications sent',
-      results: {}
-    };
-
-    if (emailResults) {
-      response.results.email = emailResults;
-    }
-
-    if (whatsappResults) {
-      response.results.whatsapp = whatsappResults;
-    }
-
-    if (!emailResults && !whatsappResults) {
-      return res.status(400).json({
-        success: false,
-        message: 'No notification methods were tested. Please specify recipients for email or WhatsApp.'
+    if (!recipients.length) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No valid recipients specified' 
       });
     }
 
-    console.log(`✅ Test alert completed for alert ${alertId}`);
-    res.status(200).json(response);
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalidEmails = recipients.filter(email => !emailRegex.test(email));
+    if (invalidEmails.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Invalid email addresses: ${invalidEmails.join(', ')}` 
+      });
+    }
+
+    // Create enhanced test email
+    const alertTypeEmoji = {
+      temperature: '🌡️',
+      windspeed: '💨', 
+      rainfall: '🌧️',
+      ndvi: '🌱'
+    }[alert.alert_type] || '⚠️';
+
+    const subject = `TEST ALERT: ${alert.alert_type.toUpperCase()} Alert for ${alert.field_name}`;
+    
+    const htmlMessage = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Test Alert - Yieldera</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #01282F; color: #B6BF00; padding: 20px; text-align: center; }
+          .content { background: #f9f9f9; padding: 20px; border-left: 4px solid #B6BF00; }
+          .footer { text-align: center; padding: 15px; color: #666; font-size: 12px; }
+          .alert-badge { background: #ff4444; color: white; padding: 5px 10px; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>YIELDERA TEST ALERT</h1>
+          </div>
+          <div class="content">
+            <div class="alert-badge">${alertTypeEmoji} TEST ALERT</div>
+            <h2>Test Alert Notification</h2>
+            <p>${testMessage.replace('{field_name}', alert.field_name)}</p>
+            <hr>
+            <p><strong>Alert Details:</strong></p>
+            <ul>
+              <li><strong>Field:</strong> ${alert.field_name}</li>
+              <li><strong>Type:</strong> ${alert.alert_type.charAt(0).toUpperCase() + alert.alert_type.slice(1)}</li>
+              <li><strong>Condition:</strong> ${alert.condition_type.replace('_', ' ')} ${alert.threshold_value}</li>
+              <li><strong>Status:</strong> ${alert.active ? 'Active' : 'Inactive'}</li>
+            </ul>
+            <p><em>This is a test email. No actual alert condition has been triggered.</em></p>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} Yieldera. All rights reserved.</p>
+            <p>This is an automated test message from the Yieldera Alert System.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const mailOptions = {
+      from: '"Yieldera Test Alerts" <alerts@yieldera.co.zw>',
+      to: recipients.join(','),
+      subject: subject,
+      text: testMessage.replace('{field_name}', alert.field_name),
+      html: htmlMessage
+    };
+
+    const info = await emailTransporter.sendMail(mailOptions);
+    
+    console.log(`✅ Test alert sent for alert ${alertId} to ${recipients.length} recipients`);
+    res.status(200).json({ 
+      success: true, 
+      message: 'Test email sent successfully',
+      recipients: recipients,
+      messageId: info.messageId
+    });
     
   } catch (err) {
     console.error('❌ Error in testAlert:', err);
@@ -468,74 +422,7 @@ const testAlert = async (req, res) => {
   }
 };
 
-// Send test email helper function
-async function sendTestEmail(alert, recipients, testMessage) {
-  const alertTypeEmoji = {
-    temperature: '🌡️',
-    windspeed: '💨', 
-    rainfall: '🌧️',
-    ndvi: '🌱'
-  }[alert.alert_type] || '⚠️';
-
-  const subject = `TEST ALERT: ${alert.alert_type.toUpperCase()} Alert for ${alert.field_name}`;
-  
-  const htmlMessage = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Test Alert - Yieldera</title>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #01282F; color: #B6BF00; padding: 20px; text-align: center; }
-        .content { background: #f9f9f9; padding: 20px; border-left: 4px solid #B6BF00; }
-        .footer { text-align: center; padding: 15px; color: #666; font-size: 12px; }
-        .alert-badge { background: #ff4444; color: white; padding: 5px 10px; border-radius: 4px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>YIELDERA TEST ALERT</h1>
-        </div>
-        <div class="content">
-          <div class="alert-badge">${alertTypeEmoji} TEST ALERT</div>
-          <h2>Test Alert Notification</h2>
-          <p>${testMessage.replace('{field_name}', alert.field_name)}</p>
-          <hr>
-          <p><strong>Alert Details:</strong></p>
-          <ul>
-            <li><strong>Field:</strong> ${alert.field_name}</li>
-            <li><strong>Type:</strong> ${alert.alert_type.charAt(0).toUpperCase() + alert.alert_type.slice(1)}</li>
-            <li><strong>Condition:</strong> ${alert.condition_type.replace('_', ' ')} ${alert.threshold_value}</li>
-            <li><strong>Status:</strong> ${alert.active ? 'Active' : 'Inactive'}</li>
-          </ul>
-          <p><em>This is a test email. No actual alert condition has been triggered.</em></p>
-        </div>
-        <div class="footer">
-          <p>© ${new Date().getFullYear()} Yieldera. All rights reserved.</p>
-          <p>This is an automated test message from the Yieldera Alert System.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  const mailOptions = {
-    from: '"Yieldera Test Alerts" <alerts@yieldera.co.zw>',
-    to: recipients.join(','),
-    subject: subject,
-    text: testMessage.replace('{field_name}', alert.field_name),
-    html: htmlMessage
-  };
-
-  const info = await emailTransporter.sendMail(mailOptions);
-  return info;
-}
-
-// GET ALERTS BY FIELD - NO CHANGES NEEDED
+// GET ALERTS BY FIELD - NEW OPTIMIZED ENDPOINT
 const getAlertsByField = async (req, res) => {
   try {
     const fieldId = req.params.fieldId;
@@ -568,7 +455,7 @@ const getAlertsByField = async (req, res) => {
   }
 };
 
-// BULK TOGGLE ALERTS - NO CHANGES NEEDED
+// BULK TOGGLE ALERTS - NEW OPTIMIZED ENDPOINT
 const bulkToggleAlerts = async (req, res) => {
   try {
     const { alertIds, active } = req.body;
@@ -605,7 +492,7 @@ const bulkToggleAlerts = async (req, res) => {
   }
 };
 
-// HEALTH CHECK ENDPOINT - UPDATED WITH WHATSAPP STATUS
+// HEALTH CHECK ENDPOINT
 const healthCheck = async (req, res) => {
   try {
     // Test database connection
@@ -614,16 +501,12 @@ const healthCheck = async (req, res) => {
     // Test email configuration (without sending)
     const emailConfigured = !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
     
-    // Test WhatsApp configuration
-    const whatsappConfigured = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM);
-    
     res.json({
       success: true,
       status: 'healthy',
       timestamp: new Date().toISOString(),
       database: 'connected',
       email: emailConfigured ? 'configured' : 'not configured',
-      whatsapp: whatsappConfigured ? 'configured' : 'not configured',
       fieldCacheSize: fieldNameCache.size,
       fieldCacheLastUpdate: new Date(fieldCacheLastUpdate).toISOString()
     });
