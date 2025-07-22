@@ -1,6 +1,5 @@
 const db = require('./database');
 const nodemailer = require('nodemailer');
-const whatsappService = require('./whatsappService');
 const { getProvider } = require('./weatherProviders/providerFactory');
 
 // Email setup with connection pooling for better performance
@@ -66,17 +65,17 @@ async function sendEmailNotification(alert, field, weatherValue, currentWeather 
   try {
     const recipients = alert.notification_emails?.split(',').map(e => e.trim()).filter(Boolean);
     if (!recipients || !recipients.length) {
-      console.warn(`⚠️ No valid email recipients for alert ${alert.id}`);
+      console.warn(`⚠️ No valid recipients for alert ${alert.id}`);
       return false;
     }
 
     // Check cooldown to prevent spam
-    const alertKey = `${alert.id}-${alert.field_id}-email`;
+    const alertKey = `${alert.id}-${alert.field_id}`;
     const lastSent = monitorCache.alertCooldowns.get(alertKey);
     const now = Date.now();
     
     if (lastSent && (now - lastSent) < monitorCache.ALERT_COOLDOWN) {
-      console.log(`⏰ Email alert ${alert.id} in cooldown period`);
+      console.log(`⏰ Alert ${alert.id} in cooldown period`);
       return false;
     }
 
@@ -351,54 +350,14 @@ To manage your alert settings, please log in to your Yieldera dashboard.
     // Update cooldown cache
     monitorCache.alertCooldowns.set(alertKey, now);
     
-    console.log(`✅ Email alert sent to ${recipients.join(', ')} for field ${fieldName} (Alert ID: ${alert.id})`);
+    // Update last triggered in database
+    await db.query('UPDATE alerts SET last_triggered = NOW() WHERE id = ?', [alert.id]);
+    
+    console.log(`✅ Alert sent to ${recipients.join(', ')} for field ${fieldName} (Alert ID: ${alert.id})`);
     return true;
     
   } catch (err) {
     console.error(`❌ Email failed for alert ${alert.id}:`, err.message);
-    return false;
-  }
-}
-
-// NEW: Send WhatsApp notification
-async function sendWhatsAppNotification(alert, field, weatherValue, currentWeather = null) {
-  try {
-    if (!alert.sms_notification || !alert.phone_numbers) {
-      // WhatsApp notifications are disabled or no phone numbers provided
-      return false;
-    }
-
-    // Check cooldown to prevent spam
-    const alertKey = `${alert.id}-${alert.field_id}-whatsapp`;
-    const lastSent = monitorCache.alertCooldowns.get(alertKey);
-    const now = Date.now();
-    
-    if (lastSent && (now - lastSent) < monitorCache.ALERT_COOLDOWN) {
-      console.log(`⏰ WhatsApp alert ${alert.id} in cooldown period`);
-      return false;
-    }
-
-    const result = await whatsappService.sendWhatsAppAlert(
-      alert, 
-      field, 
-      weatherValue, 
-      alert.phone_numbers, 
-      currentWeather
-    );
-
-    if (result.success) {
-      // Update cooldown cache
-      monitorCache.alertCooldowns.set(alertKey, now);
-      console.log(`✅ WhatsApp alert sent for field ${field.name || `Field #${field.id}`} (Alert ID: ${alert.id})`);
-      console.log(`📱 WhatsApp sent to ${result.totalSent}/${result.totalAttempted} numbers`);
-      return true;
-    } else {
-      console.warn(`⚠️ WhatsApp alert failed for alert ${alert.id}: ${result.error}`);
-      return false;
-    }
-    
-  } catch (err) {
-    console.error(`❌ WhatsApp notification failed for alert ${alert.id}:`, err.message);
     return false;
   }
 }
@@ -422,7 +381,7 @@ function isConditionMet(value, condition, threshold, tolerance = 0.1) {
   }
 }
 
-// UPDATED: Enhanced alert checking with both email and WhatsApp support
+// Enhanced alert checking with better error handling and performance
 async function checkAlerts() {
   const startTime = Date.now();
   console.log(`🔍 Starting alert check at ${new Date().toISOString()}`);
@@ -456,8 +415,6 @@ async function checkAlerts() {
     console.log(`📋 Checking ${alerts.length} active alerts`);
     
     let alertsTriggered = 0;
-    let emailsSent = 0;
-    let whatsappsSent = 0;
     let alertsProcessed = 0;
     const errors = [];
 
@@ -489,32 +446,16 @@ async function checkAlerts() {
           if (isConditionMet(weatherValue, condition, threshold)) {
             console.log(`🚨 Alert triggered: ${alert.alert_type} ${weatherValue} ${condition} ${threshold} for field ${alert.field_name}`);
             
-            alertsTriggered++;
-            
-            const fieldData = {
+            const emailSent = await sendEmailNotification(alert, {
               id: alert.field_id,
               name: alert.field_name,
               farm_name: alert.farm_name,
               farmer_name: alert.farmer_name
-            };
+            }, weatherValue, weather);
             
-            // Send notifications in parallel
-            const [emailSent, whatsappSent] = await Promise.all([
-              // Send email notification if configured
-              alert.notification_emails ? sendEmailNotification(alert, fieldData, weatherValue, weather) : Promise.resolve(false),
-              
-              // Send WhatsApp notification if configured
-              (alert.sms_notification && alert.phone_numbers) ? sendWhatsAppNotification(alert, fieldData, weatherValue, weather) : Promise.resolve(false)
-            ]);
-            
-            if (emailSent) emailsSent++;
-            if (whatsappSent) whatsappsSent++;
-            
-            // Update last triggered in database if any notification was sent
-            if (emailSent || whatsappSent) {
-              await db.query('UPDATE alerts SET last_triggered = NOW() WHERE id = ?', [alert.id]);
+            if (emailSent) {
+              alertsTriggered++;
             }
-            
           } else {
             console.log(`✅ Alert OK: ${alert.alert_type} ${weatherValue} (threshold: ${condition} ${threshold}) for field ${alert.field_name}`);
           }
@@ -534,7 +475,6 @@ async function checkAlerts() {
     const duration = Date.now() - startTime;
     console.log(`✅ Alert check completed in ${duration}ms`);
     console.log(`📊 Summary: ${alertsProcessed} alerts processed, ${alertsTriggered} alerts triggered`);
-    console.log(`📧 Emails sent: ${emailsSent}, 📱 WhatsApp sent: ${whatsappsSent}`);
     
     if (errors.length > 0) {
       console.log(`⚠️ Errors encountered: ${errors.length}`);
@@ -597,7 +537,6 @@ function setupGracefulShutdown() {
 function initializeMonitoring() {
   console.log('🚀 Starting Yieldera Alert Monitor');
   console.log(`📧 Email configured: ${process.env.SMTP_USER ? 'Yes' : 'No'}`);
-  console.log(`📱 WhatsApp configured: ${process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN ? 'Yes' : 'No'}`);
   console.log(`🌤️ Weather provider: ${weatherProvider.constructor.name}`);
   
   // Setup graceful shutdown
@@ -630,6 +569,5 @@ module.exports = {
   checkAlerts,
   initializeMonitoring,
   isConditionMet,
-  sendEmailNotification,
-  sendWhatsAppNotification
+  sendEmailNotification
 };
