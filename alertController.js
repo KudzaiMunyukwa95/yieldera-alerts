@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 const whatsappService = require('./whatsappService');
 
 // Email setup
-const emailTransporter = nodemailer.createTransporter({
+const emailTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'mail.yieldera.co.zw',
   port: parseInt(process.env.SMTP_PORT || '465'),
   secure: true,
