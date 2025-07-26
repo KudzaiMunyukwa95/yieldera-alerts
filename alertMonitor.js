@@ -2,7 +2,7 @@ const db = require('./database');
 const nodemailer = require('nodemailer');
 
 // Email setup
-const emailTransporter = nodemailer.createTransporter({
+const emailTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'mail.yieldera.co.zw',
   port: parseInt(process.env.SMTP_PORT || '465'),
   secure: true,
