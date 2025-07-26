@@ -2,7 +2,7 @@ const db = require('./database');
 const nodemailer = require('nodemailer');
 
 // Email setup - simplified to work with existing setups
-const emailTransporter = nodemailer.createTransport({
+const emailTransporter = nodemailer.createTransporter({
   host: process.env.SMTP_HOST || 'mail.yieldera.co.zw',
   port: parseInt(process.env.SMTP_PORT || '465'),
   secure: true,
@@ -25,6 +25,79 @@ function formatNumericValue(value) {
   
   // Otherwise return as float with reasonable precision
   return parseFloat(num.toFixed(2));
+}
+
+// Helper function to check if condition is met
+function isConditionMet(value, condition, threshold) {
+  const val = parseFloat(value);
+  const thresh = parseFloat(threshold);
+  
+  switch (condition) {
+    case 'greater_than': return val > thresh;
+    case 'less_than': return val < thresh;
+    case 'equal_to': return Math.abs(val - thresh) < 0.1; // Small tolerance for floating point
+    default: return false;
+  }
+}
+
+// Helper function to get date range for period
+function getDateRange(period) {
+  const now = new Date();
+  const start = new Date();
+  
+  switch (period) {
+    case '24h':
+      start.setHours(now.getHours() - 24);
+      break;
+    case '7d':
+      start.setDate(now.getDate() - 7);
+      break;
+    case '30d':
+      start.setDate(now.getDate() - 30);
+      break;
+    default:
+      start.setHours(now.getHours() - 24);
+  }
+  
+  return { start, end: now };
+}
+
+// Fetch historical weather data from Open-Meteo
+async function fetchHistoricalWeather(latitude, longitude, startDate, endDate) {
+  try {
+    const start = startDate.toISOString().split('T')[0];
+    const end = endDate.toISOString().split('T')[0];
+    
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${start}&end_date=${end}&hourly=temperature_2m,windspeed_10m,precipitation&timezone=auto`;
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (!data.hourly) {
+      console.warn('No historical weather data available for coordinates:', latitude, longitude);
+      return [];
+    }
+    
+    const hourlyData = [];
+    const times = data.hourly.time;
+    const temperatures = data.hourly.temperature_2m;
+    const windspeeds = data.hourly.windspeed_10m;
+    const precipitation = data.hourly.precipitation;
+    
+    for (let i = 0; i < times.length; i++) {
+      hourlyData.push({
+        datetime: times[i],
+        temperature: temperatures[i],
+        windspeed: windspeeds[i],
+        rainfall: precipitation[i] || 0
+      });
+    }
+    
+    return hourlyData;
+  } catch (error) {
+    console.error('Error fetching historical weather:', error);
+    return [];
+  }
 }
 
 // CREATE ALERT - Compatible with existing structure
@@ -172,6 +245,118 @@ const getAllAlerts = async (req, res) => {
   } catch (err) {
     console.error('❌ Error fetching alerts:', err);
     res.status(500).json({ success: false, message: 'Fetch failed', error: err.message });
+  }
+};
+
+// GET TRIGGERED ALERTS HISTORY - NEW FEATURE
+const getTriggeredAlertsHistory = async (req, res) => {
+  try {
+    const { period = '24h' } = req.query;
+    console.log(`Fetching triggered alerts history for period: ${period}`);
+    
+    const { start, end } = getDateRange(period);
+    
+    // Get all active alerts with field coordinates
+    let alertsWithFields;
+    try {
+      const [alerts] = await db.query(`
+        SELECT 
+          a.*,
+          COALESCE(f.name, CONCAT('Field #', a.field_id)) as field_name,
+          f.latitude,
+          f.longitude
+        FROM alerts a
+        LEFT JOIN fields f ON a.field_id = f.id
+        WHERE a.active = 1 AND f.latitude IS NOT NULL AND f.longitude IS NOT NULL
+      `);
+      alertsWithFields = alerts;
+    } catch (joinError) {
+      console.warn('Could not join with fields table for triggered alerts');
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Could not fetch field coordinates for alerts' 
+      });
+    }
+    
+    if (!alertsWithFields.length) {
+      return res.json([]);
+    }
+    
+    // Group alerts by field to minimize API calls
+    const fieldGroups = {};
+    alertsWithFields.forEach(alert => {
+      const key = `${alert.latitude}_${alert.longitude}`;
+      if (!fieldGroups[key]) {
+        fieldGroups[key] = {
+          latitude: alert.latitude,
+          longitude: alert.longitude,
+          field_name: alert.field_name,
+          alerts: []
+        };
+      }
+      fieldGroups[key].alerts.push(alert);
+    });
+    
+    const triggeredAlerts = [];
+    
+    // Process each field group
+    for (const [coordKey, fieldGroup] of Object.entries(fieldGroups)) {
+      try {
+        console.log(`Fetching historical weather for ${fieldGroup.field_name} (${fieldGroup.latitude}, ${fieldGroup.longitude})`);
+        
+        const weatherData = await fetchHistoricalWeather(
+          fieldGroup.latitude, 
+          fieldGroup.longitude, 
+          start, 
+          end
+        );
+        
+        if (!weatherData.length) {
+          console.warn(`No weather data available for ${fieldGroup.field_name}`);
+          continue;
+        }
+        
+        // Check each alert against each weather data point
+        for (const alert of fieldGroup.alerts) {
+          for (const weather of weatherData) {
+            const weatherValue = weather[alert.alert_type];
+            
+            if (weatherValue !== null && weatherValue !== undefined) {
+              if (isConditionMet(weatherValue, alert.condition_type, alert.threshold_value)) {
+                triggeredAlerts.push({
+                  alert_id: alert.id,
+                  field_id: alert.field_id,
+                  field_name: alert.field_name,
+                  alert_type: alert.alert_type,
+                  condition_type: alert.condition_type,
+                  threshold_value: formatNumericValue(alert.threshold_value),
+                  triggered_at: weather.datetime,
+                  actual_value: formatNumericValue(weatherValue),
+                  notification_emails: alert.notification_emails
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing field ${fieldGroup.field_name}:`, error);
+        continue;
+      }
+    }
+    
+    // Sort by triggered time (most recent first)
+    triggeredAlerts.sort((a, b) => new Date(b.triggered_at) - new Date(a.triggered_at));
+    
+    console.log(`✅ Found ${triggeredAlerts.length} triggered alerts for period ${period}`);
+    res.json(triggeredAlerts);
+    
+  } catch (err) {
+    console.error('❌ Error fetching triggered alerts history:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch triggered alerts history', 
+      error: err.message 
+    });
   }
 };
 
@@ -338,5 +523,6 @@ module.exports = {
   getAllAlerts,
   getAlertById,
   deleteAlert,
-  testAlert
+  testAlert,
+  getTriggeredAlertsHistory  // NEW EXPORT
 };
