@@ -1,9 +1,8 @@
 const db = require('./database');
 const nodemailer = require('nodemailer');
-const { getProvider } = require('./weatherProviders/providerFactory');
 
 // Email setup
-const emailTransporter = nodemailer.createTransport({
+const emailTransporter = nodemailer.createTransporter({
   host: process.env.SMTP_HOST || 'mail.yieldera.co.zw',
   port: parseInt(process.env.SMTP_PORT || '465'),
   secure: true,
@@ -201,6 +200,13 @@ async function sendEmailNotification(alert, field, weatherValue) {
       html: message
     });
     console.log(`✅ Alert sent to ${recipients.join(', ')} for field ${field.name || field.id}`);
+    
+    // Update last triggered time and trigger count
+    await db.query(
+      'UPDATE alerts SET last_triggered = NOW(), trigger_count = trigger_count + 1 WHERE id = ?',
+      [alert.id]
+    );
+    
   } catch (err) {
     console.error('❌ Email failed:', err.message);
   }
@@ -208,41 +214,157 @@ async function sendEmailNotification(alert, field, weatherValue) {
 
 // Check if the alert condition is met
 function isConditionMet(value, condition, threshold) {
+  const val = parseFloat(value);
+  const thresh = parseFloat(threshold);
+  
   switch (condition) {
-    case 'greater_than': return value > threshold;
-    case 'less_than': return value < threshold;
-    case 'equal_to': return value === threshold;
+    case 'greater_than': return val > thresh;
+    case 'less_than': return val < thresh;
+    case 'equal_to': return Math.abs(val - thresh) < 0.1; // Small tolerance for floating point
     default: return false;
   }
 }
 
-// Core checker
-async function checkAlerts() {
+// Fetch weather data from Open-Meteo
+async function fetchWeatherData(latitude, longitude) {
   try {
-    const [alerts] = await db.query('SELECT * FROM alerts WHERE active = 1');
-    const weatherProvider = getProvider('open-meteo');
-
-    for (const alert of alerts) {
-      const [fieldRows] = await db.query('SELECT * FROM fields WHERE id = ?', [alert.field_id]);
-      const field = fieldRows[0];
-      if (!field || !field.latitude || !field.longitude) continue;
-
-      const weather = await weatherProvider.fetchCurrentWeather(field.latitude, field.longitude);
-      if (!weather || !weather[alert.alert_type]) continue;
-
-      const weatherValue = weather[alert.alert_type];
-      const threshold = alert.threshold_value;
-      const condition = alert.condition_type;
-
-      if (isConditionMet(weatherValue, condition, threshold)) {
-        await sendEmailNotification(alert, field, weatherValue);
-      }
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&timezone=auto`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (!data.current_weather) {
+      throw new Error('No current weather data available');
     }
-  } catch (err) {
-    console.error('❌ Alert monitor error:', err.message);
+    
+    const currentWeather = data.current_weather;
+    
+    return {
+      temperature: currentWeather.temperature,
+      windspeed: currentWeather.windspeed,
+      // Rainfall estimation based on weather code (simplified)
+      rainfall: (currentWeather.weathercode >= 50 && currentWeather.weathercode < 70) ? 
+               (currentWeather.weathercode - 49) * 0.1 : 0
+    };
+  } catch (error) {
+    console.error('Weather fetch error:', error);
+    return null;
   }
 }
 
-// Run on load and every 30 minutes
+// Core alert checking function
+async function checkAlerts() {
+  try {
+    console.log('🔍 Starting alert check cycle...');
+    
+    // Get all active alerts with field information
+    const [alerts] = await db.query(`
+      SELECT 
+        a.*,
+        COALESCE(f.name, CONCAT('Field #', a.field_id)) as field_name,
+        f.latitude,
+        f.longitude
+      FROM alerts a
+      LEFT JOIN fields f ON a.field_id = f.id
+      WHERE a.active = 1 AND f.latitude IS NOT NULL AND f.longitude IS NOT NULL
+    `);
+    
+    if (!alerts.length) {
+      console.log('ℹ️ No active alerts with valid field coordinates found');
+      return;
+    }
+    
+    console.log(`📋 Found ${alerts.length} active alerts to check`);
+    
+    // Group alerts by coordinates to minimize API calls
+    const locationGroups = {};
+    alerts.forEach(alert => {
+      const key = `${alert.latitude}_${alert.longitude}`;
+      if (!locationGroups[key]) {
+        locationGroups[key] = {
+          latitude: alert.latitude,
+          longitude: alert.longitude,
+          fieldInfo: {
+            name: alert.field_name,
+            id: alert.field_id
+          },
+          alerts: []
+        };
+      }
+      locationGroups[key].alerts.push(alert);
+    });
+    
+    console.log(`🌍 Processing ${Object.keys(locationGroups).length} unique locations`);
+    
+    // Check each location group
+    for (const [coordKey, group] of Object.entries(locationGroups)) {
+      try {
+        const weather = await fetchWeatherData(group.latitude, group.longitude);
+        
+        if (!weather) {
+          console.warn(`⚠️ Could not fetch weather for ${group.fieldInfo.name}`);
+          continue;
+        }
+        
+        console.log(`🌤️ Weather for ${group.fieldInfo.name}: ${weather.temperature}°C, ${weather.windspeed}km/h, ${weather.rainfall}mm`);
+        
+        // Check each alert for this location
+        for (const alert of group.alerts) {
+          const weatherValue = weather[alert.alert_type];
+          
+          if (weatherValue !== null && weatherValue !== undefined) {
+            const threshold = parseFloat(alert.threshold_value);
+            
+            if (isConditionMet(weatherValue, alert.condition_type, threshold)) {
+              console.log(`🚨 ALERT TRIGGERED: ${alert.alert_type} ${alert.condition_type} ${threshold} (actual: ${weatherValue}) for ${group.fieldInfo.name}`);
+              
+              // Check notification frequency to avoid spam
+              let shouldSend = true;
+              
+              if (alert.last_triggered && alert.notification_frequency !== 'once') {
+                const lastTriggered = new Date(alert.last_triggered);
+                const now = new Date();
+                const hoursDiff = (now - lastTriggered) / (1000 * 60 * 60);
+                
+                if (alert.notification_frequency === 'hourly' && hoursDiff < 1) {
+                  shouldSend = false;
+                } else if (alert.notification_frequency === 'daily' && hoursDiff < 24) {
+                  shouldSend = false;
+                }
+              }
+              
+              if (shouldSend) {
+                await sendEmailNotification(alert, group.fieldInfo, weatherValue);
+              } else {
+                console.log(`⏭️ Skipping notification for alert ${alert.id} due to frequency limit`);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Error processing location ${coordKey}:`, error);
+        continue;
+      }
+    }
+    
+    console.log('✅ Alert check cycle completed');
+    
+  } catch (err) {
+    console.error('❌ Alert monitor error:', err);
+  }
+}
+
+// Run immediately and then every 30 minutes
+console.log('🚀 Starting Alert Monitor Service...');
 checkAlerts();
-setInterval(checkAlerts, 1000 * 60 * 30);
+
+// Set up interval for regular checks
+const INTERVAL_MINUTES = 30;
+setInterval(checkAlerts, INTERVAL_MINUTES * 60 * 1000);
+
+console.log(`⏰ Alert monitoring active - checking every ${INTERVAL_MINUTES} minutes`);
+
+module.exports = {
+  checkAlerts,
+  sendEmailNotification,
+  isConditionMet
+};
