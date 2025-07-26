@@ -53,8 +53,9 @@ router.get('/fields/:id', async (req, res) => {
   }
 });
 
-// 🌾 ALERT ROUTES (using the updated controller)
+// 🚨 ALERT ROUTES (using the updated controller)
 router.get('/alerts', alertController.getAllAlerts);
+router.get('/alerts/triggered-history', alertController.getTriggeredAlertsHistory); // NEW ROUTE - Must be before /:id route
 router.get('/alerts/:id', alertController.getAlertById);
 router.post('/alerts', alertController.createAlert);
 router.put('/alerts/:id', alertController.updateAlert);
