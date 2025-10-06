@@ -12,6 +12,7 @@ RUN npm install --production
 COPY server.js .
 COPY apiRoutes.js .
 COPY alertController.js .
+COPY alertMonitor.js .
 COPY database.js .
 
 # Expose port
