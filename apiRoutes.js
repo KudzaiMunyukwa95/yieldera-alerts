@@ -9,14 +9,14 @@ router.get('/fields', async (req, res) => {
     const searchTerm = req.query.search || '';
     let query = 'SELECT * FROM fields';
     let params = [];
-
+    
     // Add search functionality if a search term is provided
     if (searchTerm && searchTerm.length >= 3) {
       query += ' WHERE name LIKE ? OR farmer_name LIKE ? OR crop LIKE ?';
       const searchParam = `%${searchTerm}%`;
       params = [searchParam, searchParam, searchParam];
     }
-
+    
     query += ' ORDER BY id DESC';
     
     const [rows] = await db.query(query, params);
@@ -54,8 +54,8 @@ router.get('/fields/:id', async (req, res) => {
 });
 
 // 🚨 ALERT ROUTES (using the updated controller)
+router.get('/alerts/triggered', alertController.getTriggeredAlertsHistory); // FIXED: Must be before /:id route
 router.get('/alerts', alertController.getAllAlerts);
-router.get('/alerts/triggered-history', alertController.getTriggeredAlertsHistory); // NEW ROUTE - Must be before /:id route
 router.get('/alerts/:id', alertController.getAlertById);
 router.post('/alerts', alertController.createAlert);
 router.put('/alerts/:id', alertController.updateAlert);
