@@ -62,4 +62,7 @@ app.listen(PORT, '0.0.0.0', () => {
   }
 })();
 
+// Start alert monitor background engine
+require('./alertMonitor');
+
 module.exports = app;
